@@ -19,7 +19,7 @@ public class Camera {
     private float farPlane;
 
     public Camera(float fov, float aspectRatio, float nearPlane, float farPlane) {
-        this.position = new Vector3f(0, 0, 0);
+        this.position = new Vector3f(0, 1, 5);
         this.rotation = new Vector3f(0, 0, 0);
         this.fov = fov;
         this.aspectRatio = aspectRatio;

@@ -10,7 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.lwjgl.glfw.GLFW.*;
-import static org.lwjgl.opengl.GL11.glViewport;
+import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
 @Getter
@@ -106,6 +106,11 @@ public class Display implements Renderable {
             glfwMakeContextCurrent(id);
             //glfwSetInputMode(id,GLFW_CURSOR,GLFW_CURSOR_DISABLED);
             GL.createCapabilities();
+
+//            glPolygonMode(GL_FRONT, GL_LINE);
+//            glPolygonMode(GL_BACK, GL_LINE);
+
+            glEnable(GL_DEPTH_TEST);
 
             glfwSwapInterval(0);
             glViewport(0,0,width,height);
