@@ -1,12 +1,12 @@
 package core;
 
-import lombok.Data;
+import core.interfaces.Updatable;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
-public class Camera {
+public class Camera implements Updatable  {
     @Getter
     @Setter
     private Vector3f position;
@@ -25,6 +25,11 @@ public class Camera {
         this.aspectRatio = aspectRatio;
         this.nearPlane = nearPlane;
         this.farPlane = farPlane;
+    }
+
+    @Override
+    public void update() {
+
     }
 
     public Matrix4f getViewMatrix() {

@@ -14,28 +14,39 @@ public class Loop {
 
     //With Getter
     private int RENDER_TICKS_PER_SECOND = 500;
+    private int UPDATE_TICKS_PER_SECOND = 500;
     private double RENDER_TIME = 1.0 / RENDER_TICKS_PER_SECOND;
+    private double UPDATE_TIME = 1.0 / UPDATE_TICKS_PER_SECOND;
 
     //Without Getter
     private double lastSecondTime = 0.0;
     private long lastRenderTime = System.nanoTime();
+    private long lastUpdateTime = System.nanoTime();
     private boolean shouldStop = false;
 
     List<LoopAccessable> components = new ArrayList<>();
 
-    private Loop(int delta){
-        this.RENDER_TICKS_PER_SECOND = delta;
+    private Loop(int render, int update) {
+        this.RENDER_TICKS_PER_SECOND = render;
+        this.UPDATE_TICKS_PER_SECOND = update;
     }
 
     public void run(){
         while (!shouldStop) {
             long currentTime = System.nanoTime();
             double deltaTimeRender = (currentTime - lastRenderTime) / 1e9;
+            double deltaTimeUpdate = (currentTime - lastUpdateTime) / 1e9;
 
             if (RENDER_TICKS_PER_SECOND <= 0 || deltaTimeRender >= RENDER_TIME) {
                 //RENDER
                 components.stream().filter(c -> c instanceof Renderable).forEach(c -> ((Renderable) c).render());
                 lastRenderTime = currentTime;
+            }
+
+            if (UPDATE_TICKS_PER_SECOND <= 0 || deltaTimeUpdate >= UPDATE_TIME) {
+                //RENDER
+                components.stream().filter(c -> c instanceof Updatable).forEach(c -> ((Updatable) c).update());
+                lastUpdateTime = currentTime;
             }
 
             glfwPollEvents();
@@ -56,25 +67,26 @@ public class Loop {
         this.shouldStop = true;
     }
 
-    public void setFps(int fps){
-        RENDER_TICKS_PER_SECOND = fps;
-        RENDER_TIME = 1.0 / fps;
-    }
-
     public static LoopBuilder builder(){
         return new LoopBuilder();
     }
 
     public static class LoopBuilder {
-        private int delta;
+        private int render = 60;
+        private int update = 20;
 
-        public LoopBuilder setDelta(int delta){
-            this.delta = delta;
+        public LoopBuilder render(int render){
+            this.render = render;
+            return this;
+        }
+
+        public LoopBuilder update(int update){
+            this.update = update;
             return this;
         }
 
         public Loop build(){
-            return new Loop(delta);
+            return new Loop(render, update);
         }
     }
 }
