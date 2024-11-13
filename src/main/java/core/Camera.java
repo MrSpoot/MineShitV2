@@ -30,6 +30,8 @@ public class Camera implements Updatable  {
     @Override
     public void update() {
 
+
+
     }
 
     public Matrix4f getViewMatrix() {

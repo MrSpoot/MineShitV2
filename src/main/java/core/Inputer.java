@@ -2,6 +2,7 @@ package core;
 
 import core.interfaces.Updatable;
 import lombok.Data;
+import lombok.Getter;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -14,6 +15,7 @@ public class Inputer implements Updatable {
     private final Display display;
     private final Map<String, InputTouch> touchList;
     private final Map<String, InputTouch> pressedList;
+    @Getter
     private final MouseInfo mouseInfo;
     private boolean mouseIsInitiated = false;
 

@@ -1,4 +1,5 @@
 import core.*;
+import core.manager.Input;
 
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE;
 
@@ -8,6 +9,8 @@ public class MineShit {
         Loop loop = Loop.builder().render(120).build();
         Display window = Display.builder().title("v0.0.1").width(1280).height(720).loop(loop).build();
         Inputer inputer = Inputer.builder().display(window).loop(loop).touch(new InputTouch("ESCAPE",GLFW_KEY_ESCAPE)).build();
+
+        Input.init(inputer);
 
         Camera camera = new Camera(90,window.aspectRatio(),0.1f,1000f);
 

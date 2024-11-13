@@ -1,8 +1,6 @@
 package core;
 
 import lombok.Data;
-import org.spoot.ryukazev2.manager.InputManager;
-import org.spoot.ryukazev2.utils.ServiceLocator;
 
 @Data
 public class InputTouch {
@@ -13,6 +11,5 @@ public class InputTouch {
     public InputTouch(String name, int touch) {
         this.name = name;
         this.touch = touch;
-        ServiceLocator.getService(InputManager.class).linkNewTouch(this);
     }
 }
