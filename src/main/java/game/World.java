@@ -4,15 +4,26 @@ import org.joml.Vector3f;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class World {
 
-    private static final Map<Vector3f, Chunk> chunksToRender = new HashMap<>();
-    private static final int RENDER_DISTANCE = 4;
+    private static final Map<Vector3f, Chunk> chunksToRender = new ConcurrentHashMap<>();
+    private static final int RENDER_DISTANCE = 12;
     private static Vector3f lastPlayerChunkPosition = new Vector3f(Float.MAX_VALUE);
 
+    // Création d'un ExecutorService pour gérer les threads
+    private static final ExecutorService executor = Executors.newFixedThreadPool(4);  // Par exemple, 4 threads
+    private static final Map<Vector3f, Future<?>> chunkLoadingTasks = new ConcurrentHashMap<>();
+
     public static void render() {
-        chunksToRender.values().forEach(Chunk::render);
+        chunksToRender.values().forEach(chunk -> {
+            chunk.createMesh();
+            chunk.render();
+        });
     }
 
     public static void updateChunks(Vector3f playerPosition) {
@@ -33,19 +44,35 @@ public class World {
             for (int y = chunkY - RENDER_DISTANCE; y <= chunkY + RENDER_DISTANCE; y++) {
                 for (int z = chunkZ - RENDER_DISTANCE; z <= chunkZ + RENDER_DISTANCE; z++) {
                     Vector3f chunkPosition = new Vector3f(x, y, z);
-                    if (!chunksToRender.containsKey(chunkPosition)) {
-                        chunksToRender.put(chunkPosition, new Chunk(chunkPosition));
+                    if (!chunksToRender.containsKey(chunkPosition) && !chunkLoadingTasks.containsKey(chunkPosition)) {
+                        // Soumettre une tâche pour charger le chunk dans un autre thread
+                        Future<?> future = executor.submit(() -> {
+                            Chunk newChunk = new Chunk(chunkPosition);
+                            synchronized (chunksToRender) {
+                                chunksToRender.put(chunkPosition, newChunk);
+                            }
+                        });
+                        chunkLoadingTasks.put(chunkPosition, future);
                     }
                 }
             }
         }
 
-        chunksToRender.entrySet().removeIf(entry ->
-                entry.getKey().x < chunkX - RENDER_DISTANCE || entry.getKey().x > chunkX + RENDER_DISTANCE ||
-                        entry.getKey().y < chunkY - RENDER_DISTANCE || entry.getKey().y > chunkY + RENDER_DISTANCE ||
-                        entry.getKey().z < chunkZ - RENDER_DISTANCE || entry.getKey().z > chunkZ + RENDER_DISTANCE
+        // Supprimer les chunks hors de la distance de rendu et annuler les tâches associées
+        chunksToRender.entrySet().removeIf(entry -> {
+            Vector3f pos = entry.getKey();
+            boolean outOfRange = pos.x < chunkX - RENDER_DISTANCE || pos.x > chunkX + RENDER_DISTANCE ||
+                    pos.y < chunkY - RENDER_DISTANCE || pos.y > chunkY + RENDER_DISTANCE ||
+                    pos.z < chunkZ - RENDER_DISTANCE || pos.z > chunkZ + RENDER_DISTANCE;
 
-        );
+            if (outOfRange) {
+                entry.getValue().cleanup();
+                chunkLoadingTasks.remove(pos);
+            }
+            return outOfRange;
+        });
+
+        // Supprimer les tâches terminées de la liste des tâches de chargement
+        chunkLoadingTasks.entrySet().removeIf(entry -> entry.getValue().isDone());
     }
-
 }

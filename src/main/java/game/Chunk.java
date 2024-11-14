@@ -13,9 +13,11 @@ import java.util.List;
 public class Chunk implements Renderable {
 
     private Vector3f position;
-    public static final int CHUNK_SIZE = 8;
+    public static final int CHUNK_SIZE = 16;
     private boolean[] chunk;
-    private Mesh mesh = CubeMesh.createCube();
+    private Mesh mesh;
+    private float[] vertices;  // Stocke les données de sommets
+    private int[] indices;
 
     public Chunk(Vector3f position) {
         this.position = position;
@@ -36,6 +38,16 @@ public class Chunk implements Renderable {
         model.setTranslation(position.x * CHUNK_SIZE, position.y * CHUNK_SIZE, position.z * CHUNK_SIZE);
         Display.shader.setUniform("uModel", model);
         mesh.render();
+    }
+
+    public void cleanup() {
+        if (mesh != null) {
+            mesh.cleanup();
+            mesh = null;
+        }
+        chunk = null;
+        vertices = null;
+        indices = null;
     }
 
     public void generateMesh() {
@@ -91,13 +103,14 @@ public class Chunk implements Renderable {
         }
 
         // Convertir les listes en tableaux
-        float[] vertices = toFloatArray(verticesList);
-        int[] indices = toIntArray(indicesList);
+        vertices = toFloatArray(verticesList);
+        indices = toIntArray(indicesList);
+    }
 
-        // Créer le mesh avec les données générées
-        Mesh chunkMesh = new Mesh(vertices, indices);
-        // Assigne le mesh au chunk
-        mesh = chunkMesh;
+    public void createMesh() {
+        if (mesh == null) {
+            mesh = new Mesh(vertices, indices);  // Crée le Mesh avec les données
+        }
     }
 
     // Méthode pour ajouter une face au mesh

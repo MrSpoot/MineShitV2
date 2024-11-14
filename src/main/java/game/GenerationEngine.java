@@ -7,7 +7,7 @@ public class GenerationEngine {
 
     private static final long SEED = 154555112;
     private static final float FREQUENCY = 0.01f;
-    private static final float AMPLITUDE = 5.0f;  // Amplitude ajustée pour contrôler la hauteur des collines
+    private static final float AMPLITUDE = 50.0f;  // Amplitude ajustée pour contrôler la hauteur des collines
     private static final int BASE_HEIGHT = 0;  // Hauteur de base pour le terrain plat
 
     public static boolean[] generateChunkData(Vector3f chunkPosition) {
