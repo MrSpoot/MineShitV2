@@ -23,13 +23,15 @@ public class Display implements Renderable {
     private final int width;
     private final int height;
     private final Loop loop;
+    public static Shader shader;
 
-    private Display(long id, String title, int width, int height, Loop loop) {
+    private Display(long id, String title, int width, int height, Loop loop, Shader shader) {
         this.id = id;
         this.title = title;
         this.width = width;
         this.height = height;
         this.loop = loop;
+        this.shader = shader;
 
         loop.addComponent(this);
     }
@@ -104,11 +106,11 @@ public class Display implements Renderable {
                     LOGGER.error("Error code [{}], msg [{}]", errorCode, MemoryUtil.memUTF8(msgPtr))
             );
             glfwMakeContextCurrent(id);
-            //glfwSetInputMode(id,GLFW_CURSOR,GLFW_CURSOR_DISABLED);
+            glfwSetInputMode(id,GLFW_CURSOR,GLFW_CURSOR_DISABLED);
             GL.createCapabilities();
 
-//            glPolygonMode(GL_FRONT, GL_LINE);
-//            glPolygonMode(GL_BACK, GL_LINE);
+            glEnable(GL_CULL_FACE);
+            glCullFace(GL_BACK);
 
             glEnable(GL_DEPTH_TEST);
 
@@ -117,7 +119,9 @@ public class Display implements Renderable {
             glfwShowWindow(id);
             glfwSetWindowTitle(id,this.title);
 
-            return new Display(id, title, width, height,loop);
+            Shader shader = new Shader("src/main/resources/shaders/default.glsl");
+
+            return new Display(id, title, width, height,loop,shader);
         }
 
         private void resize(long windowHandle, int width, int height){

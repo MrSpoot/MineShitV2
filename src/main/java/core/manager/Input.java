@@ -18,11 +18,11 @@ public class Input {
     }
 
     public static float getXAxisRaw(){
-        return inputer.getMouseInfo().getXAxis();
+        return inputer.getMouseInfo().getXAxisRaw();
     };
 
     public static float getYAxisRaw(){
-        return inputer.getMouseInfo().getYAxis();
+        return inputer.getMouseInfo().getYAxisRaw();
     };
 
 

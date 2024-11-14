@@ -1,6 +1,8 @@
 package core;
 
 import core.interfaces.Renderable;
+import game.Chunk;
+import game.World;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
@@ -32,7 +34,12 @@ public class Renderer implements Renderable {
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
+        Display.shader.setUniform("uView",camera.getViewMatrix());
+        Display.shader.setUniform("uProjection",camera.getProjectionMatrix());
+
         this.renderables.forEach(Renderable::render);
+
+        World.render();
 
         glfwSwapBuffers(this.display.getId());
     }

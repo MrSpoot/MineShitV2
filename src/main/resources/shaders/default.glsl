@@ -23,9 +23,6 @@ in vec3 aColor;
 out vec4 FragColor;
 
 void main() {
-    // Définir la couleur du fragment
-    //FragColor = vec4(vColor, 1.0);
-
-    FragColor = vec4(aColor,1);
+    FragColor = vec4(aColor / 16,1);
 }
 //@endfs

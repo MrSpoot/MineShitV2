@@ -69,6 +69,17 @@ public class Inputer implements Updatable {
         private float lastY = 0f;
         private float xAxis = 0f;
         private float yAxis = 0f;
+
+        public float getXAxisRaw(){
+            float x = this.xAxis;
+            this.xAxis = 0;
+            return x;
+        }
+        public float getYAxisRaw(){
+            float y = this.yAxis;
+            this.yAxis = 0;
+            return y;
+        }
     }
 
     public static InputerBuilder builder() {

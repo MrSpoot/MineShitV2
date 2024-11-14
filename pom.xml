@@ -146,6 +146,11 @@
             <version>1.18.30</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>com.flowpowered</groupId>
+            <artifactId>flow-noise</artifactId>
+            <version>1.0.0</version>
+        </dependency>
     </dependencies>
 
 </project>

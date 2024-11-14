@@ -3,6 +3,7 @@ package core;
 import core.interfaces.LoopAccessable;
 import core.interfaces.Renderable;
 import core.interfaces.Updatable;
+import core.manager.Input;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,14 +40,19 @@ public class Loop {
 
             if (RENDER_TICKS_PER_SECOND <= 0 || deltaTimeRender >= RENDER_TIME) {
                 //RENDER
-                components.stream().filter(c -> c instanceof Renderable).forEach(c -> ((Renderable) c).render());
+                Time.update("render");
+                components.stream().filter(c -> c instanceof Renderer).forEach(c -> ((Renderer) c).render());
                 lastRenderTime = currentTime;
             }
 
             if (UPDATE_TICKS_PER_SECOND <= 0 || deltaTimeUpdate >= UPDATE_TIME) {
                 //RENDER
+                Time.update("update");
                 components.stream().filter(c -> c instanceof Updatable).forEach(c -> ((Updatable) c).update());
                 lastUpdateTime = currentTime;
+                if(Input.isPressed("exit")){
+                    shouldStop = true;
+                }
             }
 
             glfwPollEvents();
