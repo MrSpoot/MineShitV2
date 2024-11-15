@@ -2,6 +2,7 @@ package core;
 
 import core.interfaces.Renderable;
 import core.interfaces.Updatable;
+import game.texture.Texture;
 import lombok.Getter;
 import org.lwjgl.glfw.GLFWVidMode;
 import org.lwjgl.opengl.GL;
@@ -80,6 +81,7 @@ public class Display implements Renderable {
             }
 
             glfwDefaultWindowHints();
+            glfwWindowHint(GLFW_DEPTH_BITS, 24);
             glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
             glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
@@ -120,6 +122,8 @@ public class Display implements Renderable {
             glfwSetWindowTitle(id,this.title);
 
             Shader shader = new Shader("src/main/resources/shaders/default.glsl");
+
+            shader.setUniform("uTexture", Texture.getId());
 
             return new Display(id, title, width, height,loop,shader);
         }

@@ -9,6 +9,7 @@ import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
+import static org.joml.Math.*;
 import static org.lwjgl.opengl.GL11.*;
 
 public class Camera implements Updatable  {
@@ -81,6 +82,11 @@ public class Camera implements Updatable  {
         position.add(velocity);
 
         World.updateChunks(position);
+    }
+
+    // Méthode pour limiter une valeur entre un minimum et un maximum
+    private float clamp(float value, float min, float max) {
+        return max(min, min(value, max));
     }
 
     public void rotate(float x, float y, float z) {

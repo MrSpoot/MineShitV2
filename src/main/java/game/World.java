@@ -2,7 +2,9 @@ package game;
 
 import org.joml.Vector3f;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -12,7 +14,7 @@ import java.util.concurrent.Future;
 public class World {
 
     private static final Map<Vector3f, Chunk> chunksToRender = new ConcurrentHashMap<>();
-    private static final int RENDER_DISTANCE = 12;
+    private static final int RENDER_DISTANCE = 1;
     private static Vector3f lastPlayerChunkPosition = new Vector3f(Float.MAX_VALUE);
 
     // Création d'un ExecutorService pour gérer les threads
@@ -74,5 +76,41 @@ public class World {
 
         // Supprimer les tâches terminées de la liste des tâches de chargement
         chunkLoadingTasks.entrySet().removeIf(entry -> entry.getValue().isDone());
+    }
+
+    public static void cleanup() {
+        chunksToRender.clear();
+        chunkLoadingTasks.clear();
+        executor.shutdown();
+    }
+
+    private static void processChunkFace(List<Chunk> neighboringChunks){
+
+
+
+    }
+
+    public static List<Chunk> getNeighboringChunks(Chunk chunk) {
+        List<Chunk> neighboringChunks = new ArrayList<>();
+
+        Vector3f[] neighborOffsets = {
+                new Vector3f(1, 0, 0),  // Droite
+                new Vector3f(-1, 0, 0), // Gauche
+                new Vector3f(0, 1, 0),  // Haut
+                new Vector3f(0, -1, 0), // Bas
+                new Vector3f(0, 0, 1),  // Avant
+                new Vector3f(0, 0, -1)  // Arrière
+        };
+
+        for (Vector3f offset : neighborOffsets) {
+            Vector3f neighborPosition = new Vector3f(chunk.getPosition()).add(offset);
+            Chunk neighborChunk = chunksToRender.get(neighborPosition);
+
+            if (neighborChunk != null) {
+                neighboringChunks.add(neighborChunk);
+            }
+        }
+
+        return neighboringChunks;
     }
 }
