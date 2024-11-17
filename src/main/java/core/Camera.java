@@ -10,6 +10,7 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import static org.joml.Math.*;
+import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
 
 public class Camera implements Updatable  {
@@ -25,6 +26,8 @@ public class Camera implements Updatable  {
     private float farPlane;
     private float xSens = 25f;
     private float ySens = 25f;
+
+    private int i = 0;
 
     public Camera(float fov, float aspectRatio, float nearPlane, float farPlane, Loop loop) {
         this.position = new Vector3f(0, 1, 5);
@@ -43,7 +46,7 @@ public class Camera implements Updatable  {
         float mouseX = Input.getXAxisRaw() * Time.delta("update") * xSens;
         float mouseY = Input.getYAxisRaw() * Time.delta("update") * ySens;
 
-        rotate(mouseY, -mouseX, 0);
+        rotate(-mouseY, -mouseX, 0);
 
         Vector3f velocity = new Vector3f(0f);
         Vector3f forward = new Vector3f(0, 0, -1).rotate(rotation);
@@ -81,7 +84,17 @@ public class Camera implements Updatable  {
 
         position.add(velocity);
 
-        World.updateChunks(position);
+        if(i > 1000){
+            System.out.println("Camera Position X -> " + position.x + " Y -> " + position.y + " Z -> " + position.z);
+            System.out.println("Camera Target X -> " + getTarget().x + " Y -> " + getTarget().y + " Z -> " + getTarget().z);
+            System.out.println("-------------------");
+            i = 0;
+        }else{
+            i++;
+        }
+
+        World.updateChunks(new Vector3f(0));
+        //World.updateChunks(position);
     }
 
     // Méthode pour limiter une valeur entre un minimum et un maximum
@@ -113,7 +126,6 @@ public class Camera implements Updatable  {
                 nearPlane,
                 farPlane
         );
-        projection.m11(projection.m11() * -1);
         return projection;
     }
 }

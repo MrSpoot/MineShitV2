@@ -2,6 +2,7 @@ package core;
 
 import core.interfaces.Renderable;
 import core.interfaces.Updatable;
+import core.manager.Input;
 import game.texture.Texture;
 import lombok.Getter;
 import org.lwjgl.glfw.GLFWVidMode;
@@ -81,7 +82,7 @@ public class Display implements Renderable {
             }
 
             glfwDefaultWindowHints();
-            glfwWindowHint(GLFW_DEPTH_BITS, 24);
+            //glfwWindowHint(GLFW_DEPTH_BITS, 24);
             glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
             glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
@@ -115,11 +116,14 @@ public class Display implements Renderable {
             glCullFace(GL_BACK);
 
             glEnable(GL_DEPTH_TEST);
+            glDepthFunc(GL_LEQUAL);
 
             glfwSwapInterval(0);
             glViewport(0,0,width,height);
             glfwShowWindow(id);
             glfwSetWindowTitle(id,this.title);
+
+            Texture.create("/texture/texture_sheet.png",GL_NEAREST);
 
             Shader shader = new Shader("src/main/resources/shaders/default.glsl");
 

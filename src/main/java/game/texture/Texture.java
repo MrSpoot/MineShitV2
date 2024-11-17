@@ -1,5 +1,6 @@
 package game.texture;
 
+import lombok.Getter;
 import org.lwjgl.BufferUtils;
 
 import javax.imageio.ImageIO;
@@ -9,13 +10,16 @@ import java.nio.IntBuffer;
 
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL12.GL_CLAMP_TO_EDGE;
+import static org.lwjgl.opengl.GL30.glGenerateMipmap;
 
 public class Texture {
 
+    @Getter
     private static int id;
-    private static int width,height;
+    @Getter
+    private static int width, height;
 
-    public static void create(String atlasPath,int filter){
+    public static void create(String atlasPath, int filter) {
         BufferedImage image;
         try {
             image = ImageIO.read(TextureAtlasManager.class.getResource(atlasPath));
@@ -41,27 +45,16 @@ public class Texture {
             data[i] = a << 24 | b << 16 | g << 8 | r;
         }
 
+        IntBuffer buffer = BufferUtils.createIntBuffer(data.length);
+        buffer.put(data).flip();
+
         id = glGenTextures();
-        glBindTexture(GL_TEXTURE_2D,id);
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,filter);
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,filter);
+        glBindTexture(GL_TEXTURE_2D, id);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, buffer);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        IntBuffer buffer = BufferUtils.createIntBuffer(data.length);
-        buffer.put(data);
-        buffer.flip();
-        glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,width,height,0,GL_RGBA,GL_UNSIGNED_BYTE, buffer);
-    }
-
-    public static int getId() {
-        return id;
-    }
-
-    public static int getWidth() {
-        return width;
-    }
-
-    public static int getHeight() {
-        return height;
     }
 }

@@ -14,7 +14,7 @@ public class Input {
     }
 
     public static boolean isPressed(String name){
-        return inputer.isPressed(name);
+        return inputer != null && inputer.isPressed(name);
     }
 
     public static float getXAxisRaw(){
