@@ -82,7 +82,6 @@ public class Display implements Renderable {
             }
 
             glfwDefaultWindowHints();
-            //glfwWindowHint(GLFW_DEPTH_BITS, 24);
             glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
             glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
