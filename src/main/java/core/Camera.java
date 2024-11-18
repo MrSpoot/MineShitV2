@@ -26,8 +26,8 @@ public class Camera implements Updatable  {
     private float farPlane;
     private float xSens = 25f;
     private float ySens = 25f;
-
-    private int i = 0;
+    private float pitch = 0.0f;
+    private float yaw = 0.0f;
 
     public Camera(float fov, float aspectRatio, float nearPlane, float farPlane, Loop loop) {
         this.position = new Vector3f(0, 1, 5);
@@ -46,7 +46,7 @@ public class Camera implements Updatable  {
         float mouseX = Input.getXAxisRaw() * Time.delta("update") * xSens;
         float mouseY = Input.getYAxisRaw() * Time.delta("update") * ySens;
 
-        rotate(-mouseY, -mouseX, 0);
+        rotate(-mouseY, -mouseX);
 
         Vector3f velocity = new Vector3f(0f);
         Vector3f forward = new Vector3f(0, 0, -1).rotate(rotation);
@@ -88,15 +88,17 @@ public class Camera implements Updatable  {
         World.updateChunks(position);
     }
 
-    // Méthode pour limiter une valeur entre un minimum et un maximum
     private float clamp(float value, float min, float max) {
         return max(min, min(value, max));
     }
 
-    public void rotate(float x, float y, float z) {
-        rotation.rotateX((float) Math.toRadians(x));
-        rotation.rotateLocalY((float) Math.toRadians(y));
-        rotation.rotateZ((float) Math.toRadians(z));
+    public void rotate(float pitchDelta, float yawDelta) {
+        pitch += pitchDelta;
+        pitch = clamp(pitch, -89.0f, 89.0f);
+        yaw += yawDelta;
+        rotation.identity()
+                .rotateY((float) Math.toRadians(yaw))
+                .rotateX((float) Math.toRadians(pitch));
     }
 
     public Matrix4f getViewMatrix() {
