@@ -21,28 +21,37 @@ public class GenerationEngine {
                     float globalY = chunkPosition.y * Chunk.CHUNK_SIZE + y;
                     float globalZ = chunkPosition.z * Chunk.CHUNK_SIZE + z;
 
-                    float noise = SimplexNoise.noise(globalX * FREQUENCY, globalZ * FREQUENCY) * SimplexNoise.noise(globalX * 0.01f, globalZ * 0.01f) * AMPLITUDE;
-                    int terrainHeight = (int) (BASE_HEIGHT + noise);
+                    float terrainNoise = SimplexNoise.noise(globalX * 0.01f, globalZ * 0.01f) * AMPLITUDE;
+                    float mountainNoise = SimplexNoise.noise(globalX * 0.0005f, globalZ * 0.0005f) * (AMPLITUDE * 2);
+                    float beachNoise = SimplexNoise.noise(globalX * 0.0002f, globalZ * 0.0002f) * (AMPLITUDE / 2);
 
-                    if((globalY < terrainHeight)){
-                        blocks[x + y * Chunk.CHUNK_SIZE + z * Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE] = BlockUtils.create(BlockType.TEST);
-//                        if (globalY == terrainHeight -1) {
-//                            blocks[x + y * Chunk.CHUNK_SIZE + z * Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE] = BlockUtils.create(terrainHeight > 0 ? BlockType.GRASS : BlockType.SAND);
-//                        }else if(globalY < terrainHeight - 1 && globalY > terrainHeight - 8) {
-//                            blocks[x + y * Chunk.CHUNK_SIZE + z * Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE] = BlockUtils.create(terrainHeight > 0 ? BlockType.DIRT : BlockType.SAND);
-//                        }
-//                        else{
-//                            blocks[x + y * Chunk.CHUNK_SIZE + z * Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE] = BlockUtils.create(BlockType.STONE);
-//                        }
-                    }else{
-                        blocks[x + y * Chunk.CHUNK_SIZE + z * Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE] = BlockUtils.create(BlockType.AIR);;
+                    float combinedNoise = terrainNoise + mountainNoise + beachNoise;
+                    int terrainHeight = (int) (BASE_HEIGHT + combinedNoise);
+
+                    if (globalY < terrainHeight) {
+                        if (globalY == terrainHeight - 1) {
+                            if (terrainHeight > BASE_HEIGHT + 10) {
+                                blocks[x + y * Chunk.CHUNK_SIZE + z * Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE] = BlockUtils.create(BlockType.GRASS);
+                            } else if (terrainHeight > BASE_HEIGHT - 5) {
+                                blocks[x + y * Chunk.CHUNK_SIZE + z * Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE] = BlockUtils.create(BlockType.SAND);
+                            } else {
+                                blocks[x + y * Chunk.CHUNK_SIZE + z * Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE] = BlockUtils.create(BlockType.DIRT);
+                            }
+                        } else if (globalY < terrainHeight - 1 && globalY > terrainHeight - 8) {
+                            blocks[x + y * Chunk.CHUNK_SIZE + z * Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE] = BlockUtils.create(BlockType.DIRT);
+                        } else {
+                            blocks[x + y * Chunk.CHUNK_SIZE + z * Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE] = BlockUtils.create(BlockType.STONE);
+                        }
+                    } else if (globalY < BASE_HEIGHT - 5 && SimplexNoise.noise(globalX * 0.1f, globalY * 0.1f, globalZ * 0.1f) > 0.6f) {
+                        blocks[x + y * Chunk.CHUNK_SIZE + z * Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE] = BlockUtils.create(BlockType.AIR);
+                    } else {
+                        blocks[x + y * Chunk.CHUNK_SIZE + z * Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE] = BlockUtils.create(BlockType.AIR);
                     }
-
-
                 }
             }
         }
 
         return blocks;
     }
+
 }

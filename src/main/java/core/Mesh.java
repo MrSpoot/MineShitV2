@@ -1,77 +1,78 @@
 package core;
 
-import org.lwjgl.opengl.GL30;
-import java.nio.FloatBuffer;
-import java.nio.IntBuffer;
-import org.lwjgl.system.MemoryUtil;
+import static org.lwjgl.opengl.GL15.*;
+import static org.lwjgl.opengl.GL20.*;
+import static org.lwjgl.opengl.GL30.*;
 
 public class Mesh {
     private int vaoId;
-    private int vboId;
-    private int eboId;
-    private int textureVboId;
+    private int positionsVboId;
+    private int normalsVboId;
+    private int textureCoordsVboId;
+    private int indicesVboId;
     private int vertexCount;
 
-    public Mesh(float[] vertices,float[] textureCoords, int[] indices) {
-        // Créer le VAO
-        vaoId = GL30.glGenVertexArrays();
-        GL30.glBindVertexArray(vaoId);
-
-        // Charger les données de sommets dans le VBO
-        FloatBuffer vertexBuffer = MemoryUtil.memAllocFloat(vertices.length);
-        vertexBuffer.put(vertices).flip();
-        vboId = GL30.glGenBuffers();
-        GL30.glBindBuffer(GL30.GL_ARRAY_BUFFER, vboId);
-        GL30.glBufferData(GL30.GL_ARRAY_BUFFER, vertexBuffer, GL30.GL_STATIC_DRAW);
-        GL30.glVertexAttribPointer(0, 3, GL30.GL_FLOAT, false, 0, 0);
-        GL30.glEnableVertexAttribArray(0);
-        MemoryUtil.memFree(vertexBuffer);
-
-        // Charger les coordonnées de texture dans un autre VBO
-        FloatBuffer textureBuffer = MemoryUtil.memAllocFloat(textureCoords.length);
-        textureBuffer.put(textureCoords).flip();
-        textureVboId = GL30.glGenBuffers();
-        GL30.glBindBuffer(GL30.GL_ARRAY_BUFFER, textureVboId);
-        GL30.glBufferData(GL30.GL_ARRAY_BUFFER, textureBuffer, GL30.GL_STATIC_DRAW);
-        GL30.glVertexAttribPointer(1, 2, GL30.GL_FLOAT, false, 0, 0);
-        GL30.glEnableVertexAttribArray(1);
-        MemoryUtil.memFree(textureBuffer);
-
-        // Charger les indices dans l'EBO
-        IntBuffer indicesBuffer = MemoryUtil.memAllocInt(indices.length);
-        indicesBuffer.put(indices).flip();
-        eboId = GL30.glGenBuffers();
-        GL30.glBindBuffer(GL30.GL_ELEMENT_ARRAY_BUFFER, eboId);
-        GL30.glBufferData(GL30.GL_ELEMENT_ARRAY_BUFFER, indicesBuffer, GL30.GL_STATIC_DRAW);
-        MemoryUtil.memFree(indicesBuffer);
-
+    public Mesh(float[] positions, float[] normals, float[] textureCoords, int[] indices) {
         vertexCount = indices.length;
 
-        // Désactiver le VAO
-        GL30.glBindVertexArray(0);
+        // Créez le VAO
+        vaoId = glGenVertexArrays();
+        glBindVertexArray(vaoId);
+
+        // Créez le VBO pour les positions
+        positionsVboId = glGenBuffers();
+        glBindBuffer(GL_ARRAY_BUFFER, positionsVboId);
+        glBufferData(GL_ARRAY_BUFFER, positions, GL_STATIC_DRAW);
+        glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+        glEnableVertexAttribArray(0); // Activer l'attribut position
+
+        // Créez le VBO pour les normales
+        normalsVboId = glGenBuffers();
+        glBindBuffer(GL_ARRAY_BUFFER, normalsVboId);
+        glBufferData(GL_ARRAY_BUFFER, normals, GL_STATIC_DRAW);
+        glVertexAttribPointer(1, 3, GL_FLOAT, false, 0, 0);
+        glEnableVertexAttribArray(1); // Activer l'attribut normale
+
+        // Créez le VBO pour les coordonnées de texture
+        textureCoordsVboId = glGenBuffers();
+        glBindBuffer(GL_ARRAY_BUFFER, textureCoordsVboId);
+        glBufferData(GL_ARRAY_BUFFER, textureCoords, GL_STATIC_DRAW);
+        glVertexAttribPointer(2, 2, GL_FLOAT, false, 0, 0);
+        glEnableVertexAttribArray(2); // Activer l'attribut coordonnées de texture
+
+        // Créez le VBO pour les indices
+        indicesVboId = glGenBuffers();
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indicesVboId);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices, GL_STATIC_DRAW);
+
+        // Déconnectez le VAO et le VBO
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
     }
 
-    // Méthode pour rendre le mesh
     public void render() {
-        GL30.glBindVertexArray(vaoId);
-        GL30.glDrawElements(GL30.GL_TRIANGLES, vertexCount, GL30.GL_UNSIGNED_INT, 0);
-        GL30.glBindVertexArray(0);
+        glBindVertexArray(vaoId);
+        glDrawElements(GL_TRIANGLES, vertexCount, GL_UNSIGNED_INT, 0);
+        glBindVertexArray(0);
     }
 
-    // Méthode pour libérer les ressources
     public void cleanup() {
-        GL30.glDisableVertexAttribArray(0);
-        GL30.glDisableVertexAttribArray(1);
+        glDisableVertexAttribArray(0);
+        glDisableVertexAttribArray(1);
+        glDisableVertexAttribArray(2);
 
-        GL30.glBindBuffer(GL30.GL_ARRAY_BUFFER, 0);
-        GL30.glDeleteBuffers(vboId);
-        GL30.glDeleteBuffers(textureVboId);
+        // Supprimez les VBO
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glDeleteBuffers(positionsVboId);
+        glDeleteBuffers(normalsVboId);
+        glDeleteBuffers(textureCoordsVboId);
+        glDeleteBuffers(indicesVboId);
 
-        GL30.glBindBuffer(GL30.GL_ELEMENT_ARRAY_BUFFER, 0);
-        GL30.glDeleteBuffers(eboId);
-
-        GL30.glBindVertexArray(0);
-        GL30.glDeleteVertexArrays(vaoId);
+        // Supprimez le VAO
+        glBindVertexArray(0);
+        glDeleteVertexArrays(vaoId);
     }
 }
+
+
 

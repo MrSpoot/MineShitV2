@@ -28,6 +28,7 @@ public class Chunk implements Renderable {
     private List<Float> vertices;
     private List<Float> textureCoords;
     private List<Integer> indices;
+    private List<Float> normals;
 
     private boolean meshModified = false;
 
@@ -58,6 +59,7 @@ public class Chunk implements Renderable {
             vertices = new ArrayList<>();
             textureCoords = new ArrayList<>();
             indices = new ArrayList<>();
+            normals = new ArrayList<>();
             int index = 0;
             meshModified = true;
 
@@ -74,7 +76,7 @@ public class Chunk implements Renderable {
                         for (Face face : Face.values()) {
                             if (BlockUtils.isFaceVisible(blockData, face) && isFaceVisible(x, y, z, face, neighboringChunks)) {
                                 float[] textureCoordsArray = TextureAtlasManager.getTextureCoordinate(block.getTextureForFace(face));
-                                addFace(vertices, textureCoords, indices, x, y, z, face, index, textureCoordsArray);
+                                addFace(vertices,textureCoords,normals, indices, x, y, z, face, index, textureCoordsArray);
                                 index += 4;
                             }
                         }
@@ -110,9 +112,9 @@ public class Chunk implements Renderable {
     public void createMesh() {
         lock.lock();
         try {
-            if ((mesh == null || meshModified) && vertices != null && textureCoords != null && indices != null) {
+            if ((mesh == null || meshModified) && vertices != null && textureCoords != null && indices != null && normals != null) {
                 meshModified = false;
-                mesh = new Mesh(toFloatArray(vertices), toFloatArray(textureCoords), toIntArray(indices));
+                mesh = new Mesh(toFloatArray(vertices),toFloatArray(normals),toFloatArray(textureCoords), toIntArray(indices));
             }
         }finally {
             lock.unlock();
@@ -162,26 +164,32 @@ public class Chunk implements Renderable {
         return true;
     }
 
-    private void addFace(List<Float> verticesList, List<Float> textureCoordsList, List<Integer> indicesList, int x, int y, int z, Face face, int index, float[] textureCoords) {
+    private void addFace(List<Float> verticesList, List<Float> textureCoordsList, List<Float> normalsList, List<Integer> indicesList, int x, int y, int z, Face face, int index, float[] textureCoords) {
         float[][] positions = getFacePositions(x, y, z, face);
-        for (float[] pos : positions) {
-            verticesList.add(pos[0]);
-            verticesList.add(pos[1]);
-            verticesList.add(pos[2]);
+        float[] normal = getNormalForFace(face);
+
+        for (int i = 0; i < 4; i++) {
+            // Position
+            verticesList.add(positions[i][0]);
+            verticesList.add(positions[i][1]);
+            verticesList.add(positions[i][2]);
+            // Normale
+            normalsList.add(normal[0]);
+            normalsList.add(normal[1]);
+            normalsList.add(normal[2]);
         }
+
         for (float coord : textureCoords) {
             textureCoordsList.add(coord);
         }
+
+        // Indices
         indicesList.add(index);
         indicesList.add(index + 1);
         indicesList.add(index + 2);
         indicesList.add(index + 2);
         indicesList.add(index + 3);
         indicesList.add(index);
-
-        if (index + 3 >= verticesList.size() / 3) {
-            System.out.println("Incohérence dans les indices : " + (index + 3) + " dépasse la taille " + (verticesList.size() / 3));
-        }
     }
 
     private float[][] getFacePositions(int x, int y, int z, Face face) {
@@ -192,6 +200,17 @@ public class Chunk implements Renderable {
             case LEFT -> new float[][]{{x + 1, y, z + 1}, {x + 1, y, z}, {x + 1, y + 1, z}, {x + 1, y + 1, z + 1}};
             case TOP -> new float[][]{{x, y + 1, z + 1}, {x + 1, y + 1, z + 1}, {x + 1, y + 1, z}, {x, y + 1, z}};
             case BOTTOM -> new float[][]{{x, y, z}, {x + 1, y, z}, {x + 1, y, z + 1}, {x, y, z + 1}};
+        };
+    }
+
+    private float[] getNormalForFace(Face face) {
+        return switch (face) {
+            case FRONT -> new float[]{0, 0, 1};
+            case BACK -> new float[]{0, 0, -1};
+            case RIGHT -> new float[]{1, 0, 0};
+            case LEFT -> new float[]{-1, 0, 0};
+            case TOP -> new float[]{0, 1, 0};
+            case BOTTOM -> new float[]{0, -1, 0};
         };
     }
 
