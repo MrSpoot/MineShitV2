@@ -7,7 +7,7 @@ import java.util.concurrent.*;
 public class World {
 
     private static final Map<Vector3f, Chunk> chunksToRender = new ConcurrentHashMap<>();
-    private static final int RENDER_DISTANCE = 1;
+    private static final int RENDER_DISTANCE = 4;
     private static Vector3f lastPlayerChunkPosition = new Vector3f(Float.MAX_VALUE);
 
     private static final ExecutorService executor = Executors.newFixedThreadPool(1);
@@ -26,11 +26,12 @@ public class World {
         int chunkZ = (int) playerPosition.z / Chunk.CHUNK_SIZE;
         Vector3f _playerChunkPosition = new Vector3f(chunkX, chunkY, chunkZ);
 
-        if (lastPlayerChunkPosition.equals(_playerChunkPosition)){
+        if (lastPlayerChunkPosition.equals(_playerChunkPosition)) {
             return;
         }
-
         lastPlayerChunkPosition = _playerChunkPosition;
+
+        List<Vector3f> chunksToGenerate = new ArrayList<>();
 
         for (int x = chunkX - RENDER_DISTANCE; x <= chunkX + RENDER_DISTANCE; x++) {
             for (int y = chunkY - RENDER_DISTANCE; y <= chunkY + RENDER_DISTANCE; y++) {
@@ -38,24 +39,35 @@ public class World {
                     Vector3f chunkPosition = new Vector3f(x, y, z);
 
                     if (!chunksToRender.containsKey(chunkPosition) && !chunkLoadingTasks.containsKey(chunkPosition)) {
-                        Future<?> future = executor.submit(() -> {
-                            Chunk newChunk = new Chunk(chunkPosition);
-                            List<Chunk> neighboringChunks = getNeighboringChunks(newChunk);
-
-                            if (!isChunkCompletelyHidden(newChunk, neighboringChunks)) {
-                                newChunk.generateMesh(neighboringChunks);
-                                optimizeChunkMeshes(newChunk, neighboringChunks);
-                                synchronized (chunksToRender) {
-                                    chunksToRender.put(chunkPosition, newChunk);
-                                }
-                            } else {
-                                newChunk.cleanup();
-                            }
-                        });
-                        chunkLoadingTasks.put(chunkPosition, future);
+                        chunksToGenerate.add(chunkPosition);
                     }
                 }
             }
+        }
+
+        chunksToGenerate.sort(Comparator.comparingDouble(chunkPos -> chunkPos.distance(playerPosition)));
+
+        for (Vector3f chunkPosition : chunksToGenerate) {
+            Future<?> future = executor.submit(() -> {
+                Chunk newChunk = new Chunk(chunkPosition);
+                List<Chunk> neighboringChunks = getNeighboringChunks(newChunk);
+
+                newChunk.updateFaceVisibility(neighboringChunks);
+
+                if (!isChunkCompletelyHidden(newChunk, neighboringChunks)) {
+                    newChunk.generateMesh(neighboringChunks);
+                    synchronized (chunksToRender) {
+                        chunksToRender.put(chunkPosition, newChunk);
+                    }
+                    for (Chunk neighbor : neighboringChunks) {
+                        neighbor.updateFaceVisibility(getNeighboringChunks(neighbor));
+                        neighbor.generateMesh(getNeighboringChunks(neighbor));
+                    }
+                } else {
+                    newChunk.cleanup();
+                }
+            });
+            chunkLoadingTasks.put(chunkPosition, future);
         }
 
         chunksToRender.entrySet().removeIf(entry -> {
@@ -73,6 +85,7 @@ public class World {
         chunkLoadingTasks.entrySet().removeIf(entry -> entry.getValue().isDone());
     }
 
+
     public static List<Chunk> getNeighboringChunks(Chunk chunk) {
         List<Chunk> neighbors = new ArrayList<>();
         Vector3f[] neighborOffsets = {
@@ -87,12 +100,6 @@ public class World {
             }
         }
         return neighbors;
-    }
-
-    private static void optimizeChunkMeshes(Chunk chunk, List<Chunk> neighboringChunks) {
-        for (Chunk neighbor : neighboringChunks) {
-            chunk.removeSharedFacesWith(neighbor);
-        }
     }
 
     private static boolean isChunkCompletelyHidden(Chunk chunk, List<Chunk> neighboringChunks) {

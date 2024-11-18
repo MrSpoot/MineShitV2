@@ -84,17 +84,8 @@ public class Camera implements Updatable  {
 
         position.add(velocity);
 
-        if(i > 1000){
-            System.out.println("Camera Position X -> " + position.x + " Y -> " + position.y + " Z -> " + position.z);
-            System.out.println("Camera Target X -> " + getTarget().x + " Y -> " + getTarget().y + " Z -> " + getTarget().z);
-            System.out.println("-------------------");
-            i = 0;
-        }else{
-            i++;
-        }
-
-        World.updateChunks(new Vector3f(0));
-        //World.updateChunks(position);
+        //World.updateChunks(new Vector3f(0));
+        World.updateChunks(position);
     }
 
     // Méthode pour limiter une valeur entre un minimum et un maximum

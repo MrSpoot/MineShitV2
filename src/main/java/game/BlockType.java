@@ -1,6 +1,7 @@
 package game;
 
 import game.texture.TextureAtlas;
+import game.utils.Face;
 
 public enum BlockType {
     AIR(TextureAtlas.AIR, TextureAtlas.AIR, TextureAtlas.AIR, TextureAtlas.AIR, TextureAtlas.AIR, TextureAtlas.AIR),
@@ -38,15 +39,14 @@ public enum BlockType {
         return values[index];
     }
 
-    public TextureAtlas getTextureForFace(String face) {
+    public TextureAtlas getTextureForFace(Face face) {
         return switch (face) {
-            case "top" -> topTexture;
-            case "bottom" -> bottomTexture;
-            case "left" -> leftTexture;
-            case "right" -> rightTexture;
-            case "front" -> frontTexture;
-            case "back" -> backTexture;
-            default -> TextureAtlas.AIR;
+            case TOP -> topTexture;
+            case BOTTOM -> bottomTexture;
+            case LEFT -> leftTexture;
+            case RIGHT -> rightTexture;
+            case FRONT -> frontTexture;
+            case BACK -> backTexture;
         };
     }
 }

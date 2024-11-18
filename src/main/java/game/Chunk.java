@@ -3,26 +3,33 @@ package game;
 import core.Display;
 import core.Mesh;
 import core.interfaces.Renderable;
-import game.texture.TextureAtlas;
 import game.texture.TextureAtlasManager;
+import game.utils.BlockUtils;
+import game.utils.Face;
 import lombok.Getter;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class Chunk implements Renderable {
 
+    private final Lock lock = new ReentrantLock();
+
     @Getter
     private final Vector3f position;
-    public static final int CHUNK_SIZE = 4;
+    public static final int CHUNK_SIZE = 32;
     @Getter
-    private final int[] chunkData;
+    private final short[] chunkData;
     private Mesh mesh;
     private List<Float> vertices;
     private List<Float> textureCoords;
     private List<Integer> indices;
+
+    private boolean meshModified = false;
 
     public Chunk(Vector3f position) {
         this.position = position;
@@ -46,94 +53,92 @@ public class Chunk implements Renderable {
     }
 
     public void generateMesh(List<Chunk> neighboringChunks) {
-        List<Float> verticesList = new ArrayList<>();
-        List<Float> textureCoordsList = new ArrayList<>();
-        List<Integer> indicesList = new ArrayList<>();
+        lock.lock();
+        try {
+            vertices = new ArrayList<>();
+            textureCoords = new ArrayList<>();
+            indices = new ArrayList<>();
+            int index = 0;
+            meshModified = true;
 
-        int index = 0;
+            for (int x = 0; x < CHUNK_SIZE; x++) {
+                for (int y = 0; y < CHUNK_SIZE; y++) {
+                    for (int z = 0; z < CHUNK_SIZE; z++) {
+                        short blockData = chunkData[x + y * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE];
+                        int blockType = BlockUtils.getType(blockData);
 
-        for (int x = 0; x < CHUNK_SIZE; x++) {
-            for (int y = 0; y < CHUNK_SIZE; y++) {
-                for (int z = 0; z < CHUNK_SIZE; z++) {
-                    if (chunkData[x + y * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE] == 0) continue;
+                        if (blockType == 0) continue;
 
-                    BlockType blockType = BlockType.fromIndex(chunkData[x + y * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE]);
+                        BlockType block = BlockType.fromIndex(blockType);
 
-                    if (isFaceVisible(x, y, z, "front", neighboringChunks)) {
-                        float[] textureCoords = TextureAtlasManager.getTextureCoordinate(blockType.getTextureForFace("front"));
-                        addFace(verticesList, textureCoordsList, indicesList, x, y, z, "front", index, textureCoords);
-                        index += 4;
-                    }
-                    if (isFaceVisible(x, y, z, "back", neighboringChunks)) {
-                        float[] textureCoords = TextureAtlasManager.getTextureCoordinate(blockType.getTextureForFace("back"));
-                        addFace(verticesList, textureCoordsList, indicesList, x, y, z, "back", index, textureCoords);
-                        index += 4;
-                    }
-                    if (isFaceVisible(x, y, z, "left", neighboringChunks)) {
-                        float[] textureCoords = TextureAtlasManager.getTextureCoordinate(blockType.getTextureForFace("left"));
-                        addFace(verticesList, textureCoordsList, indicesList, x, y, z, "left", index, textureCoords);
-                        index += 4;
-                    }
-                    if (isFaceVisible(x, y, z, "right", neighboringChunks)) {
-                        float[] textureCoords = TextureAtlasManager.getTextureCoordinate(blockType.getTextureForFace("right"));
-                        addFace(verticesList, textureCoordsList, indicesList, x, y, z, "right", index, textureCoords);
-                        index += 4;
-                    }
-                    if (isFaceVisible(x, y, z, "top", neighboringChunks)) {
-                        float[] textureCoords = TextureAtlasManager.getTextureCoordinate(blockType.getTextureForFace("top"));
-                        addFace(verticesList, textureCoordsList, indicesList, x, y, z, "top", index, textureCoords);
-                        index += 4;
-                    }
-                    if (isFaceVisible(x, y, z, "bottom", neighboringChunks)) {
-                        float[] textureCoords = TextureAtlasManager.getTextureCoordinate(blockType.getTextureForFace("bottom"));
-                        addFace(verticesList, textureCoordsList, indicesList, x, y, z, "bottom", index, textureCoords);
-                        index += 4;
+                        for (Face face : Face.values()) {
+                            if (BlockUtils.isFaceVisible(blockData, face) && isFaceVisible(x, y, z, face, neighboringChunks)) {
+                                float[] textureCoordsArray = TextureAtlasManager.getTextureCoordinate(block.getTextureForFace(face));
+                                addFace(vertices, textureCoords, indices, x, y, z, face, index, textureCoordsArray);
+                                index += 4;
+                            }
+                        }
                     }
                 }
             }
+        }finally {
+            lock.unlock();
         }
+    }
 
-        vertices = verticesList;
-        textureCoords = textureCoordsList;
-        indices = indicesList;
+    public void updateFaceVisibility(List<Chunk> neighboringChunks) {
+        for (int x = 0; x < CHUNK_SIZE; x++) {
+            for (int y = 0; y < CHUNK_SIZE; y++) {
+                for (int z = 0; z < CHUNK_SIZE; z++) {
+                    short blockData = chunkData[x + y * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE];
+                    int blockType = BlockUtils.getType(blockData);
+
+                    if (blockType == 0) continue;
+
+                    for (Face face : Face.values()) {
+                        boolean visible = isFaceVisible(x, y, z, face, neighboringChunks);
+                        BlockUtils.setFaceVisibility(blockData, face, visible);
+                    }
+
+                    chunkData[x + y * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE] = blockData;
+                    meshModified = true;
+                }
+            }
+        }
     }
 
     public void createMesh() {
-        if (mesh == null && vertices != null && textureCoords != null && indices != null && !vertices.isEmpty() && !textureCoords.isEmpty() && !indices.isEmpty()) {
-            mesh = new Mesh(toFloatArray(vertices),toFloatArray(textureCoords), toIntArray(indices));
+        lock.lock();
+        try {
+            if ((mesh == null || meshModified) && vertices != null && textureCoords != null && indices != null) {
+                meshModified = false;
+                mesh = new Mesh(toFloatArray(vertices), toFloatArray(textureCoords), toIntArray(indices));
+            }
+        }finally {
+            lock.unlock();
         }
+
     }
 
-    private boolean isFaceVisible(int x, int y, int z, String face, List<Chunk> neighboringChunks) {
+    private boolean isFaceVisible(int x, int y, int z, Face face, List<Chunk> neighboringChunks) {
         int adjacentX = x;
         int adjacentY = y;
         int adjacentZ = z;
 
         switch (face) {
-            case "front":
-                adjacentZ += 1;
-                break;
-            case "back":
-                adjacentZ -= 1;
-                break;
-            case "left":
-                adjacentX += 1;
-                break;
-            case "right":
-                adjacentX -= 1;
-                break;
-            case "top":
-                adjacentY += 1;
-                break;
-            case "bottom":
-                adjacentY -= 1;
-                break;
+            case FRONT -> adjacentZ += 1;
+            case BACK -> adjacentZ -= 1;
+            case LEFT -> adjacentX += 1;
+            case RIGHT -> adjacentX -= 1;
+            case TOP -> adjacentY += 1;
+            case BOTTOM -> adjacentY -= 1;
         }
 
         if (adjacentX >= 0 && adjacentX < CHUNK_SIZE &&
                 adjacentY >= 0 && adjacentY < CHUNK_SIZE &&
                 adjacentZ >= 0 && adjacentZ < CHUNK_SIZE) {
-            return chunkData[adjacentX + adjacentY * CHUNK_SIZE + adjacentZ * CHUNK_SIZE * CHUNK_SIZE] == 0;
+            short neighborData = chunkData[adjacentX + adjacentY * CHUNK_SIZE + adjacentZ * CHUNK_SIZE * CHUNK_SIZE];
+            return BlockUtils.getType(neighborData) == 0;
         }
 
         Vector3f offset = new Vector3f();
@@ -150,159 +155,45 @@ public class Chunk implements Renderable {
                 int neighborY = (adjacentY + CHUNK_SIZE) % CHUNK_SIZE;
                 int neighborZ = (adjacentZ + CHUNK_SIZE) % CHUNK_SIZE;
 
-                if (neighbor.getChunkData()[neighborX + neighborY * CHUNK_SIZE + neighborZ * CHUNK_SIZE * CHUNK_SIZE] != 0) {
-                    neighbor.removeFaceUsingVertices(neighborX, neighborY, neighborZ, getOppositeFace(face));
-                    return false;
-                }
+                short neighborBlockData = neighbor.getChunkData()[neighborX + neighborY * CHUNK_SIZE + neighborZ * CHUNK_SIZE * CHUNK_SIZE];
+                return BlockUtils.getType(neighborBlockData) == 0;
             }
         }
         return true;
     }
 
-    public void removeFaceUsingVertices(int x, int y, int z, String face) {
-        if (vertices == null || indices == null) {
-            return;
-        }
-
-        float[][] facePositions = getFacePositions(x, y, z, face);
-
-        List<Integer> indicesToRemove = new ArrayList<>();
-        for (int i = 0; i < indices.size(); i += 3) {
-            boolean match = true;
-            for (int j = 0; j < 3; j++) {
-                int index = indices.get(i + j);
-                float vx = vertices.get(index * 3);
-                float vy = vertices.get(index * 3 + 1);
-                float vz = vertices.get(index * 3 + 2);
-
-                boolean vertexMatch = false;
-                for (float[] pos : facePositions) {
-                    if (vx == pos[0] && vy == pos[1] && vz == pos[2]) {
-                        vertexMatch = true;
-                        break;
-                    }
-                }
-                if (!vertexMatch) {
-                    match = false;
-                    break;
-                }
-            }
-            if (match) {
-                indicesToRemove.add(i);
-                indicesToRemove.add(i + 1);
-                indicesToRemove.add(i + 2);
-            }
-        }
-
-        indicesToRemove.sort((a, b) -> b - a);
-        for (int index : indicesToRemove) {
-            indices.remove(index);
-        }
-    }
-
-
-    private String getOppositeFace(String face) {
-        return switch (face) {
-            case "front" -> "back";
-            case "back" -> "front";
-            case "left" -> "right";
-            case "right" -> "left";
-            case "top" -> "bottom";
-            case "bottom" -> "top";
-            default -> ""; // Face invalide
-        };
-    }
-
-    public void removeSharedFacesWith(Chunk neighbor) {
-        Vector3f neighborPosition = neighbor.getPosition();
-
-        int offsetX = (int) (neighborPosition.x - this.position.x);
-        int offsetY = (int) (neighborPosition.y - this.position.y);
-        int offsetZ = (int) (neighborPosition.z - this.position.z);
-
-        for (int x = 0; x < CHUNK_SIZE; x++) {
-            for (int y = 0; y < CHUNK_SIZE; y++) {
-                for (int z = 0; z < CHUNK_SIZE; z++) {
-                    if (chunkData[x + y * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE] == 0) continue;
-
-                    if (offsetX == 1 && x == CHUNK_SIZE - 1) { // Voisin à droite
-                        if (neighbor.getChunkData()[0 + y * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE] != 0) {
-                            removeFaceUsingVertices(x, y, z, "right");
-                            neighbor.removeFaceUsingVertices(0, y, z, "left");
-                        }
-                    } else if (offsetX == -1 && x == 0) { // Voisin à gauche
-                        if (neighbor.getChunkData()[(CHUNK_SIZE - 1) + y * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE] != 0) {
-                            removeFaceUsingVertices(x, y, z, "left");
-                            neighbor.removeFaceUsingVertices(CHUNK_SIZE - 1, y, z, "right");
-                        }
-                    }
-                    if (offsetY == 1 && y == CHUNK_SIZE - 1) { // Voisin au-dessus
-                        if (neighbor.getChunkData()[x + 0 * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE] != 0) {
-                            removeFaceUsingVertices(x, y, z, "top");
-                            neighbor.removeFaceUsingVertices(x, 0, z, "bottom");
-                        }
-                    } else if (offsetY == -1 && y == 0) { // Voisin en dessous
-                        if (neighbor.getChunkData()[x + (CHUNK_SIZE - 1) * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE] != 0) {
-                            removeFaceUsingVertices(x, y, z, "bottom");
-                            neighbor.removeFaceUsingVertices(x, CHUNK_SIZE - 1, z, "top");
-                        }
-                    }
-                    if (offsetZ == 1 && z == CHUNK_SIZE - 1) { // Voisin devant
-                        if (neighbor.getChunkData()[x + y * CHUNK_SIZE + 0 * CHUNK_SIZE * CHUNK_SIZE] != 0) {
-                            removeFaceUsingVertices(x, y, z, "front");
-                            neighbor.removeFaceUsingVertices(x, y, 0, "back");
-                        }
-                    } else if (offsetZ == -1 && z == 0) { // Voisin derrière
-                        if (neighbor.getChunkData()[x + y * CHUNK_SIZE + (CHUNK_SIZE - 1) * CHUNK_SIZE * CHUNK_SIZE] != 0) {
-                            removeFaceUsingVertices(x, y, z, "back");
-                            neighbor.removeFaceUsingVertices(x, y, CHUNK_SIZE - 1, "front");
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private void addFace(List<Float> verticesList, List<Float> textureCoordsList, List<Integer> indicesList, int x, int y, int z, String face, int index, float[] textureCoords) {
+    private void addFace(List<Float> verticesList, List<Float> textureCoordsList, List<Integer> indicesList, int x, int y, int z, Face face, int index, float[] textureCoords) {
         float[][] positions = getFacePositions(x, y, z, face);
         for (float[] pos : positions) {
             verticesList.add(pos[0]);
             verticesList.add(pos[1]);
             verticesList.add(pos[2]);
         }
-        for (float coord : textureCoords) textureCoordsList.add(coord);
+        for (float coord : textureCoords) {
+            textureCoordsList.add(coord);
+        }
         indicesList.add(index);
         indicesList.add(index + 1);
         indicesList.add(index + 2);
         indicesList.add(index + 2);
         indicesList.add(index + 3);
         indicesList.add(index);
+
+        if (index + 3 >= verticesList.size() / 3) {
+            System.out.println("Incohérence dans les indices : " + (index + 3) + " dépasse la taille " + (verticesList.size() / 3));
+        }
     }
 
-    private float[][] getFacePositions(int x, int y, int z, String face) {
+    private float[][] getFacePositions(int x, int y, int z, Face face) {
         return switch (face) {
-            case "front" -> new float[][]{
-                    {x, y, z + 1}, {x + 1, y, z + 1}, {x + 1, y + 1, z + 1}, {x, y + 1, z + 1}
-            };
-            case "back" -> new float[][]{
-                    {x + 1, y, z}, {x, y, z}, {x, y + 1, z}, {x + 1, y + 1, z}
-            };
-            case "right" -> new float[][]{
-                    {x, y, z}, {x, y, z + 1}, {x, y + 1, z + 1}, {x, y + 1, z}
-            };
-            case "left" -> new float[][]{
-                    {x + 1, y, z + 1}, {x + 1, y, z}, {x + 1, y + 1, z}, {x + 1, y + 1, z + 1}
-            };
-            case "top" -> new float[][]{
-                    {x, y + 1, z + 1}, {x + 1, y + 1, z + 1}, {x + 1, y + 1, z}, {x, y + 1, z}
-            };
-            case "bottom" -> new float[][]{
-                    {x, y, z}, {x + 1, y, z}, {x + 1, y, z + 1}, {x, y, z + 1}
-            };
-            default -> new float[0][0];
+            case FRONT -> new float[][]{{x, y, z + 1}, {x + 1, y, z + 1}, {x + 1, y + 1, z + 1}, {x, y + 1, z + 1}};
+            case BACK -> new float[][]{{x + 1, y, z}, {x, y, z}, {x, y + 1, z}, {x + 1, y + 1, z}};
+            case RIGHT -> new float[][]{{x, y, z}, {x, y, z + 1}, {x, y + 1, z + 1}, {x, y + 1, z}};
+            case LEFT -> new float[][]{{x + 1, y, z + 1}, {x + 1, y, z}, {x + 1, y + 1, z}, {x + 1, y + 1, z + 1}};
+            case TOP -> new float[][]{{x, y + 1, z + 1}, {x + 1, y + 1, z + 1}, {x + 1, y + 1, z}, {x, y + 1, z}};
+            case BOTTOM -> new float[][]{{x, y, z}, {x + 1, y, z}, {x + 1, y, z + 1}, {x, y, z + 1}};
         };
     }
-
 
     private float[] toFloatArray(List<Float> list) {
         float[] array = new float[list.size()];

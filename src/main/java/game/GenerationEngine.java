@@ -1,5 +1,6 @@
 package game;
 
+import game.utils.BlockUtils;
 import org.joml.SimplexNoise;
 import org.joml.Vector3f;
 
@@ -10,8 +11,8 @@ public class GenerationEngine {
     private static final float AMPLITUDE = 50.0f;
     private static final int BASE_HEIGHT = 10;
 
-    public static int[] generateChunkData(Vector3f chunkPosition) {
-        int[] blocks = new int[Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE];
+    public static short[] generateChunkData(Vector3f chunkPosition) {
+        short[] blocks = new short[Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE];
 
         for (int x = 0; x < Chunk.CHUNK_SIZE; x++) {
             for (int y = 0; y < Chunk.CHUNK_SIZE; y++) {
@@ -24,17 +25,17 @@ public class GenerationEngine {
                     int terrainHeight = (int) (BASE_HEIGHT + noise);
 
                     if((globalY < terrainHeight)){
-                        //blocks[x + y * Chunk.CHUNK_SIZE + z * Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE] = 8;
-                        if (globalY == terrainHeight -1) {
-                            blocks[x + y * Chunk.CHUNK_SIZE + z * Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE] = terrainHeight > 0 ? 1 : 4;
-                        }else if(globalY < terrainHeight - 1 && globalY > terrainHeight - 8) {
-                            blocks[x + y * Chunk.CHUNK_SIZE + z * Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE] = terrainHeight > 0 ? 3 : 4;
-                        }
-                        else{
-                            blocks[x + y * Chunk.CHUNK_SIZE + z * Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE] = 2;
-                        }
+                        blocks[x + y * Chunk.CHUNK_SIZE + z * Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE] = BlockUtils.create(BlockType.TEST);
+//                        if (globalY == terrainHeight -1) {
+//                            blocks[x + y * Chunk.CHUNK_SIZE + z * Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE] = BlockUtils.create(terrainHeight > 0 ? BlockType.GRASS : BlockType.SAND);
+//                        }else if(globalY < terrainHeight - 1 && globalY > terrainHeight - 8) {
+//                            blocks[x + y * Chunk.CHUNK_SIZE + z * Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE] = BlockUtils.create(terrainHeight > 0 ? BlockType.DIRT : BlockType.SAND);
+//                        }
+//                        else{
+//                            blocks[x + y * Chunk.CHUNK_SIZE + z * Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE] = BlockUtils.create(BlockType.STONE);
+//                        }
                     }else{
-                        blocks[x + y * Chunk.CHUNK_SIZE + z * Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE] = 0;
+                        blocks[x + y * Chunk.CHUNK_SIZE + z * Chunk.CHUNK_SIZE * Chunk.CHUNK_SIZE] = BlockUtils.create(BlockType.AIR);;
                     }
 
 
