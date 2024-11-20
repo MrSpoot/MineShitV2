@@ -1,5 +1,8 @@
 package game.texture;
 
+import lombok.Getter;
+
+@Getter
 public enum TextureAtlas {
 
     AIR(0,0),
@@ -24,11 +27,4 @@ public enum TextureAtlas {
         this.y = y;
     }
 
-    public int getX() {
-        return x;
-    }
-
-    public int getY() {
-        return y;
-    }
 }

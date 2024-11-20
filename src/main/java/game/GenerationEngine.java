@@ -7,8 +7,7 @@ import org.joml.Vector3f;
 public class GenerationEngine {
 
     private static final long SEED = 154555112;
-    private static final float FREQUENCY = 0.005f;
-    private static final float AMPLITUDE = 50.0f;
+    private static final float AMPLITUDE = 35.0f;
     private static final int BASE_HEIGHT = 10;
 
     public static short[] generateChunkData(Vector3f chunkPosition) {

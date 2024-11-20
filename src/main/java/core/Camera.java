@@ -30,7 +30,7 @@ public class Camera implements Updatable  {
     private float yaw = 0.0f;
 
     public Camera(float fov, float aspectRatio, float nearPlane, float farPlane, Loop loop) {
-        this.position = new Vector3f(0, 1, 5);
+        this.position = new Vector3f(2, 5, 10);
         this.rotation = new Quaternionf();
         this.fov = fov;
         this.aspectRatio = aspectRatio;
@@ -84,8 +84,8 @@ public class Camera implements Updatable  {
 
         position.add(velocity);
 
-        //World.updateChunks(new Vector3f(0));
-        World.updateChunks(position);
+        World.updateChunks(new Vector3f(0));
+        //World.updateChunks(position);
     }
 
     private float clamp(float value, float min, float max) {

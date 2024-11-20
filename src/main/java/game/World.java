@@ -7,7 +7,7 @@ import java.util.concurrent.*;
 public class World {
 
     private static final Map<Vector3f, Chunk> chunksToRender = new ConcurrentHashMap<>();
-    private static final int RENDER_DISTANCE = 4;
+    private static final int RENDER_DISTANCE = 0;
     private static Vector3f lastPlayerChunkPosition = new Vector3f(Float.MAX_VALUE);
 
     private static final ExecutorService executor = Executors.newFixedThreadPool(1);
@@ -31,19 +31,7 @@ public class World {
         }
         lastPlayerChunkPosition = _playerChunkPosition;
 
-        List<Vector3f> chunksToGenerate = new ArrayList<>();
-
-        for (int x = chunkX - RENDER_DISTANCE; x <= chunkX + RENDER_DISTANCE; x++) {
-            for (int y = chunkY - RENDER_DISTANCE; y <= chunkY + RENDER_DISTANCE; y++) {
-                for (int z = chunkZ - RENDER_DISTANCE; z <= chunkZ + RENDER_DISTANCE; z++) {
-                    Vector3f chunkPosition = new Vector3f(x, y, z);
-
-                    if (!chunksToRender.containsKey(chunkPosition) && !chunkLoadingTasks.containsKey(chunkPosition)) {
-                        chunksToGenerate.add(chunkPosition);
-                    }
-                }
-            }
-        }
+        List<Vector3f> chunksToGenerate = getChunksToGenerate(chunkX, chunkY, chunkZ);
 
         chunksToGenerate.sort(Comparator.comparingDouble(chunkPos -> chunkPos.distance(playerPosition)));
 
@@ -83,6 +71,24 @@ public class World {
         });
 
         chunkLoadingTasks.entrySet().removeIf(entry -> entry.getValue().isDone());
+    }
+
+    private static List<Vector3f> getChunksToGenerate(int chunkX, int chunkY, int chunkZ) {
+        List<Vector3f> chunksToGenerate = new ArrayList<>();
+
+        for (int x = chunkX - RENDER_DISTANCE; x <= chunkX + RENDER_DISTANCE; x++) {
+            for (int y = chunkY - RENDER_DISTANCE; y <= chunkY + RENDER_DISTANCE; y++) {
+                for (int z = chunkZ - RENDER_DISTANCE; z <= chunkZ + RENDER_DISTANCE; z++) {
+                    Vector3f chunkPosition = new Vector3f(x, y, z);
+
+                    if (!chunksToRender.containsKey(chunkPosition) && !chunkLoadingTasks.containsKey(chunkPosition)) {
+                        chunksToGenerate.add(chunkPosition);
+                    }
+                }
+            }
+        }
+
+        return chunksToGenerate;
     }
 
 
