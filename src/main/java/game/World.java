@@ -7,7 +7,7 @@ import java.util.concurrent.*;
 public class World {
 
     private static final Map<Vector3f, Chunk> chunksToRender = new ConcurrentHashMap<>();
-    private static final int RENDER_DISTANCE = 0;
+    private static final int RENDER_DISTANCE = 8;
     private static Vector3f lastPlayerChunkPosition = new Vector3f(Float.MAX_VALUE);
 
     private static final ExecutorService executor = Executors.newFixedThreadPool(1);

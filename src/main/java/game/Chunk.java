@@ -11,6 +11,7 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -21,7 +22,7 @@ public class Chunk implements Renderable {
 
     @Getter
     private final Vector3f position;
-    public static final int CHUNK_SIZE = 16;
+    public static final int CHUNK_SIZE = 32;
     @Getter
     private final short[] chunkData;
     private Mesh mesh;
@@ -93,6 +94,202 @@ public class Chunk implements Renderable {
         }
     }
 
+    public int generateGreedyMeshForTopAndBot(List<Chunk> neighboringChunks, Face face, int index) {
+        boolean[][][] visited = new boolean[CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE];
+        int _index = index;
+        for (int x = 0; x < CHUNK_SIZE; x++) {
+            for (int y = 0; y < CHUNK_SIZE; y++) {
+                for (int z = 0; z < CHUNK_SIZE; z++) {
+
+                    short blockData = chunkData[x + y * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE];
+                    int blockType = BlockUtils.getType(blockData);
+
+                    if (blockType == 0) continue;
+
+                    if(visited[x][y][z]) continue;
+
+                    if (BlockUtils.isFaceVisible(blockData, face) && isFaceVisible(x, y, z, face, neighboringChunks)) {
+
+                        int width = 0;
+                        int height = 0;
+
+                        for (int j = z; j < CHUNK_SIZE; j++) {
+                            short _blockData = chunkData[x + y * CHUNK_SIZE + j * CHUNK_SIZE * CHUNK_SIZE];
+                            int _blockType = BlockUtils.getType(_blockData);
+
+                            if (_blockType == blockType && BlockUtils.isFaceVisible(_blockData, face) && isFaceVisible(x, y, j, face, neighboringChunks) && !visited[x][y][j]) {
+                                width++;
+                            } else {
+                                break;
+                            }
+                        }
+
+                        for (int i = x; i < CHUNK_SIZE; i++) {
+                            boolean isRowValid = true;
+                            for (int j = z; j < z + width; j++) {
+                                short _blockData = chunkData[i + y * CHUNK_SIZE + j * CHUNK_SIZE * CHUNK_SIZE];
+                                int _blockType = BlockUtils.getType(_blockData);
+
+                                if (_blockType != blockType || !BlockUtils.isFaceVisible(_blockData, face) || !isFaceVisible(i, y, j, face, neighboringChunks) || visited[i][y][j]) {
+                                    isRowValid = false;
+                                    break;
+                                }
+                            }
+                            if (isRowValid) {
+                                height++;
+                            } else {
+                                break;
+                            }
+                        }
+
+                        for (int dx = 0; dx < height; dx++) {
+                            for (int dz = 0; dz < width; dz++) {
+                                visited[x + dx][y][z + dz] = true;
+                            }
+                        }
+
+                        // Ajouter la face fusionnée
+                        float[] textureCoordsArray = TextureAtlasManager.getTextureCoordinate(BlockType.fromIndex(blockType).getTextureForFace(face));
+                        addFace(vertices, textureCoords, normals, indices, x, y, z, face, _index, textureCoordsArray, height, width);
+                        _index += 4;
+                    }
+                }
+
+
+            }
+        }
+        return _index;
+    }
+
+    public int generateGreedyMeshForFrontAndBack(List<Chunk> neighboringChunks, Face face, int index) {
+        boolean[][][] visited = new boolean[CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE];
+        int _index = index;
+
+        for (int x = 0; x < CHUNK_SIZE; x++) {
+            for (int y = 0; y < CHUNK_SIZE; y++) {
+                for (int z = 0; z < CHUNK_SIZE; z++) {
+
+                    short blockData = chunkData[x + y * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE];
+                    int blockType = BlockUtils.getType(blockData);
+
+                    if (blockType == 0 || visited[x][y][z]) continue;
+
+                    if (BlockUtils.isFaceVisible(blockData, face) && isFaceVisible(x, y, z, face, neighboringChunks)) {
+
+                        int width = 0;
+                        int height = 0;
+
+                        // Largeur (le long de l'axe X)
+                        for (int dx = x; dx < CHUNK_SIZE; dx++) {
+                            short _blockData = chunkData[dx + y * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE];
+                            int _blockType = BlockUtils.getType(_blockData);
+
+                            if (_blockType == blockType && BlockUtils.isFaceVisible(_blockData, face) && isFaceVisible(dx, y, z, face, neighboringChunks) && !visited[dx][y][z]) {
+                                width++;
+                            } else {
+                                break;
+                            }
+                        }
+
+                        // Hauteur (le long de l'axe Y)
+                        for (int dy = y; dy < CHUNK_SIZE; dy++) {
+                            boolean isRowValid = true;
+                            for (int dx = x; dx < x + width; dx++) {
+                                short _blockData = chunkData[dx + dy * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE];
+                                int _blockType = BlockUtils.getType(_blockData);
+
+                                if (_blockType != blockType || !BlockUtils.isFaceVisible(_blockData, face) || !isFaceVisible(dx, dy, z, face, neighboringChunks) ||visited[dx][dy][z]) {
+                                    isRowValid = false;
+                                    break;
+                                }
+                            }
+                            if (isRowValid) {
+                                height++;
+                            } else {
+                                break;
+                            }
+                        }
+
+                        for (int dy = 0; dy < height; dy++) {
+                            for (int dx = 0; dx < width; dx++) {
+                                visited[x + dx][y + dy][z] = true;
+                            }
+                        }
+
+                        float[] textureCoordsArray = TextureAtlasManager.getTextureCoordinate(BlockType.fromIndex(blockType).getTextureForFace(face));
+                        addFace(vertices, textureCoords, normals, indices, x, y, z, face, _index, textureCoordsArray,width, height  );
+                        _index += 4;
+                    }
+                }
+            }
+        }
+        return _index;
+    }
+
+    public int generateGreedyMeshForLeftAndRight(List<Chunk> neighboringChunks, Face face, int index) {
+        boolean[][][] visited = new boolean[CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE];
+        int _index = index;
+
+        for (int z = 0; z < CHUNK_SIZE; z++) {
+            for (int y = 0; y < CHUNK_SIZE; y++) {
+                for (int x = 0; x < CHUNK_SIZE; x++) {
+
+                    short blockData = chunkData[x + y * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE];
+                    int blockType = BlockUtils.getType(blockData);
+
+                    if (blockType == 0 || visited[x][y][z]) continue;
+
+                    if (BlockUtils.isFaceVisible(blockData, face) && isFaceVisible(x, y, z, face, neighboringChunks)) {
+
+                        int width = 0, height = 0;
+
+                        // Largeur (le long de l'axe Z)
+                        for (int dz = z; dz < CHUNK_SIZE; dz++) {
+                            short _blockData = chunkData[x + y * CHUNK_SIZE + dz * CHUNK_SIZE * CHUNK_SIZE];
+                            int _blockType = BlockUtils.getType(_blockData);
+
+                            if (_blockType == blockType && BlockUtils.isFaceVisible(_blockData, face) && isFaceVisible(x, y, dz, face, neighboringChunks) && !visited[x][y][dz]) {
+                                width++;
+                            } else {
+                                break;
+                            }
+                        }
+
+                        // Hauteur (le long de l'axe Y)
+                        for (int dy = y; dy < CHUNK_SIZE; dy++) {
+                            boolean isRowValid = true;
+                            for (int dz = z; dz < z + width; dz++) {
+                                short _blockData = chunkData[x + dy * CHUNK_SIZE + dz * CHUNK_SIZE * CHUNK_SIZE];
+                                int _blockType = BlockUtils.getType(_blockData);
+
+                                if (_blockType != blockType || !BlockUtils.isFaceVisible(_blockData, face) || !isFaceVisible(x, dy, dz, face, neighboringChunks) || visited[x][dy][dz]) {
+                                    isRowValid = false;
+                                    break;
+                                }
+                            }
+                            if (isRowValid) {
+                                height++;
+                            } else {
+                                break;
+                            }
+                        }
+
+                        for (int dy = 0; dy < height; dy++) {
+                            for (int dz = 0; dz < width; dz++) {
+                                visited[x][y + dy][z + dz] = true;
+                            }
+                        }
+
+                        float[] textureCoordsArray = TextureAtlasManager.getTextureCoordinate(BlockType.fromIndex(blockType).getTextureForFace(face));
+                        addFace(vertices, textureCoords, normals, indices, x, y, z, face, _index, textureCoordsArray, height, width);
+                        _index += 4;
+                    }
+                }
+            }
+        }
+        return _index;
+    }
+
     public void generateMeshGreedy(List<Chunk> neighboringChunks) {
         lock.lock();
         try {
@@ -103,75 +300,15 @@ public class Chunk implements Renderable {
             meshModified = true;
             int index = 0;
 
-            Face face = Face.TOP;
-            boolean[][][] visited = new boolean[CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE];
-
-            for (int x = 0; x < CHUNK_SIZE; x++) {
-                for (int y = 0; y < CHUNK_SIZE; y++) {
-                    for (int z = 0; z < CHUNK_SIZE; z++) {
-
-                        short blockData = chunkData[x + y * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE];
-                        int blockType = BlockUtils.getType(blockData);
-
-                        if (blockType == 0) continue;
-
-                        if(visited[x][y][z]) continue;
-
-                        if (BlockUtils.isFaceVisible(blockData, face) && isFaceVisible(x, y, z, face, neighboringChunks)) {
-
-                            int width = 0;
-                            int height = 0;
-
-                            //TODO FIND GOOD HEIGHT AND WIDTH HERE
-
-                            for (int j = z; j < CHUNK_SIZE; j++) {
-                                short _blockData = chunkData[x + y * CHUNK_SIZE + j * CHUNK_SIZE * CHUNK_SIZE];
-                                int _blockType = BlockUtils.getType(_blockData);
-
-                                if (_blockType == blockType && BlockUtils.isFaceVisible(_blockData, face) && isFaceVisible(x, y, j, face, neighboringChunks)) {
-                                    width++;
-                                } else {
-                                    break;
-                                }
-                            }
-
-                            for (int i = x; i < CHUNK_SIZE; i++) {
-                                boolean isRowValid = true;
-                                for (int j = z; j < z + width; j++) {
-                                    short _blockData = chunkData[i + y * CHUNK_SIZE + j * CHUNK_SIZE * CHUNK_SIZE];
-                                    int _blockType = BlockUtils.getType(_blockData);
-
-                                    if (_blockType != blockType || !BlockUtils.isFaceVisible(_blockData, face) || !isFaceVisible(i, y, j, face, neighboringChunks)) {
-                                        isRowValid = false;
-                                        break;
-                                    }
-                                }
-                                if (isRowValid) {
-                                    height++;
-                                } else {
-                                    break;
-                                }
-                            }
-
-                            for(int i = 0; i < height; i++) {
-                                for(int j = 0; j < width; j++) {
-                                    visited[x + i][y][z + j] = true;
-                                }
-                            }
-
-                            System.out.println("Height: " + height);
-                            System.out.println("Width: " + width);
-
-                            // Ajouter la face fusionnée
-                            float[] textureCoordsArray = TextureAtlasManager.getTextureCoordinate(BlockType.fromIndex(blockType).getTextureForFace(face));
-                            addFace(vertices, textureCoords, normals, indices, x, y, z, face, index, textureCoordsArray, height, width);
-                            index += 4;
-                        }
-                    }
 
 
-                }
-            }
+            index = generateGreedyMeshForTopAndBot(neighboringChunks, Face.TOP, index);
+            index = generateGreedyMeshForTopAndBot(neighboringChunks, Face.BOTTOM, index);
+            index = generateGreedyMeshForFrontAndBack(neighboringChunks, Face.BACK, index);
+            index = generateGreedyMeshForFrontAndBack(neighboringChunks, Face.FRONT, index);
+            index = generateGreedyMeshForLeftAndRight(neighboringChunks, Face.LEFT, index);
+            index = generateGreedyMeshForLeftAndRight(neighboringChunks, Face.RIGHT, index);
+
 
         } finally {
             lock.unlock();
@@ -326,23 +463,23 @@ public class Chunk implements Renderable {
 
     private float[][] getFacePositions(int x, int y, int z, Face face, int width, int height) {
         return switch (face) {
-            case FRONT -> new float[][]{
+            case FRONT -> new float[][] {
                     {x, y, z + 1},
                     {x + width, y, z + 1},
                     {x + width, y + height, z + 1},
                     {x, y + height, z + 1}
             };
-            case BACK -> new float[][]{
+            case BACK -> new float[][] {
                     {x + width, y, z},
                     {x, y, z},
                     {x, y + height, z},
                     {x + width, y + height, z}
             };
             case RIGHT -> new float[][]{
-                    {x + 1, y, z},
-                    {x + 1, y, z + height},
-                    {x + 1, y + width, z + height},
-                    {x + 1, y + width, z}
+                    {x, y, z},
+                    {x, y, z + height},
+                    {x, y + width, z + height},
+                    {x, y + width, z}
             };
             case LEFT -> new float[][]{
                     {x + 1, y, z + height},
