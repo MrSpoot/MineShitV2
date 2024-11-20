@@ -21,7 +21,7 @@ public class Chunk implements Renderable {
 
     @Getter
     private final Vector3f position;
-    public static final int CHUNK_SIZE = 16;
+    public static final int CHUNK_SIZE = 3;
     @Getter
     private final short[] chunkData;
     private Mesh mesh;
@@ -103,73 +103,122 @@ public class Chunk implements Renderable {
             meshModified = true;
             int index = 0;
 
-            Face face = Face.TOP;
+            Face face = Face.TOP; // À changer pour tester d'autres faces si nécessaire
+
             boolean[][][] visited = new boolean[CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE];
 
+            // Déterminer les axes principaux dynamiquement en fonction de la face
+            int axisU, axisV, axisW;
+            switch (face) {
+                case TOP, BOTTOM -> {
+                    axisU = 0; // X (largeur)
+                    axisV = 2; // Z (hauteur)
+                    axisW = 1; // Y (constant)
+                }
+                case FRONT, BACK -> {
+                    axisU = 0; // X (largeur)
+                    axisV = 1; // Y (hauteur)
+                    axisW = 2; // Z (constant)
+                }
+                case LEFT, RIGHT -> {
+                    axisU = 2; // Z (largeur)
+                    axisV = 1; // Y (hauteur)
+                    axisW = 0; // X (constant)
+                }
+                default -> throw new IllegalStateException("Unexpected face: " + face);
+            }
+
+            // Parcours du chunk
             for (int x = 0; x < CHUNK_SIZE; x++) {
                 for (int y = 0; y < CHUNK_SIZE; y++) {
                     for (int z = 0; z < CHUNK_SIZE; z++) {
+                        if (visited[x][y][z]) {
+                            System.out.printf("Skipping block (%d, %d, %d), already visited.%n", x, y, z);
+                            continue;
+                        }
 
                         short blockData = chunkData[x + y * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE];
                         int blockType = BlockUtils.getType(blockData);
 
-                        if (blockType == 0) continue;
+                        if (blockType == 0 || !BlockUtils.isFaceVisible(blockData, face) || !isFaceVisible(x, y, z, face, neighboringChunks)) {
+                            continue;
+                        }
 
-                        if(visited[x][y][z]) continue;
+                        System.out.printf("Starting calculations for block (%d, %d, %d).%n", x, y, z);
 
-                        if (BlockUtils.isFaceVisible(blockData, face) && isFaceVisible(x, y, z, face, neighboringChunks)) {
+                        int width = 0, height = 0;
 
-                            int width = 0;
-                            int height = 0;
+                        // Calculer la largeur (le long de axisU)
+                        for (int u = 0; u < CHUNK_SIZE; u++) {
+                            int ux = (axisU == 0) ? x + u : x;
+                            int uy = (axisU == 1) ? y + u : y;
+                            int uz = (axisU == 2) ? z + u : z;
 
-                            //TODO FIND GOOD HEIGHT AND WIDTH HERE
+                            if (ux >= CHUNK_SIZE || uy >= CHUNK_SIZE || uz >= CHUNK_SIZE || visited[ux][uy][uz]) {
+                                break;
+                            }
 
-                            for (int j = z; j < CHUNK_SIZE; j++) {
-                                short _blockData = chunkData[x + y * CHUNK_SIZE + j * CHUNK_SIZE * CHUNK_SIZE];
+                            short _blockData = chunkData[ux + uy * CHUNK_SIZE + uz * CHUNK_SIZE * CHUNK_SIZE];
+                            int _blockType = BlockUtils.getType(_blockData);
+
+                            if (_blockType == blockType && BlockUtils.isFaceVisible(_blockData, face) && isFaceVisible(ux, uy, uz, face, neighboringChunks)) {
+                                width++;
+                            } else {
+                                break;
+                            }
+                        }
+                        System.out.printf("Calculated width=%d for block (%d, %d, %d).%n", width, x, y, z);
+
+                        // Calculer la hauteur (le long de axisV)
+                        for (int v = 0; v < CHUNK_SIZE; v++) {
+                            boolean isRowValid = true;
+                            for (int u = 0; u < width; u++) {
+                                int ux = (axisU == 0) ? x + u : x;
+                                int uy = (axisV == 1) ? y + v : y;
+                                int uz = (axisW == 2) ? z + u : z;
+
+                                if (ux >= CHUNK_SIZE || uy >= CHUNK_SIZE || uz >= CHUNK_SIZE || visited[ux][uy][uz]) {
+                                    isRowValid = false;
+                                    break;
+                                }
+
+                                short _blockData = chunkData[ux + uy * CHUNK_SIZE + uz * CHUNK_SIZE * CHUNK_SIZE];
                                 int _blockType = BlockUtils.getType(_blockData);
 
-                                if (_blockType == blockType && BlockUtils.isFaceVisible(_blockData, face) && isFaceVisible(x, y, j, face, neighboringChunks)) {
-                                    width++;
-                                } else {
+                                if (_blockType != blockType || !BlockUtils.isFaceVisible(_blockData, face) || !isFaceVisible(ux, uy, uz, face, neighboringChunks)) {
+                                    isRowValid = false;
                                     break;
                                 }
                             }
-
-                            for (int i = x; i < CHUNK_SIZE; i++) {
-                                boolean isRowValid = true;
-                                for (int j = z; j < z + width; j++) {
-                                    short _blockData = chunkData[i + y * CHUNK_SIZE + j * CHUNK_SIZE * CHUNK_SIZE];
-                                    int _blockType = BlockUtils.getType(_blockData);
-
-                                    if (_blockType != blockType || !BlockUtils.isFaceVisible(_blockData, face) || !isFaceVisible(i, y, j, face, neighboringChunks)) {
-                                        isRowValid = false;
-                                        break;
-                                    }
-                                }
-                                if (isRowValid) {
-                                    height++;
-                                } else {
-                                    break;
-                                }
+                            if (isRowValid) {
+                                height++;
+                            } else {
+                                break;
                             }
-
-                            for(int i = 0; i < height; i++) {
-                                for(int j = 0; j < width; j++) {
-                                    visited[x + i][y][z + j] = true;
-                                }
-                            }
-
-                            System.out.println("Height: " + height);
-                            System.out.println("Width: " + width);
-
-                            // Ajouter la face fusionnée
-                            float[] textureCoordsArray = TextureAtlasManager.getTextureCoordinate(BlockType.fromIndex(blockType).getTextureForFace(face));
-                            addFace(vertices, textureCoords, normals, indices, x, y, z, face, index, textureCoordsArray, height, width);
-                            index += 4;
                         }
+                        System.out.printf("Calculated height=%d for block (%d, %d, %d).%n", height, x, y, z);
+
+                        // Marquer les blocs visités
+                        for (int v = 0; v < height; v++) {
+                            for (int u = 0; u < width; u++) {
+                                int ux = (axisU == 0) ? x + u : x;
+                                int uy = (axisV == 1) ? y + v : y;
+                                int uz = (axisW == 2) ? z : z + u;
+
+                                if (ux < CHUNK_SIZE && uy < CHUNK_SIZE && uz < CHUNK_SIZE) {
+                                    visited[ux][uy][uz] = true;
+                                    System.out.printf("Marking block (%d, %d, %d) as visited.%n", ux, uy, uz);
+                                }
+                            }
+                        }
+
+                        System.out.printf("Adding face for block (%d, %d, %d): width=%d, height=%d.%n", x, y, z, width, height);
+
+                        // Ajouter la face fusionnée
+                        float[] textureCoordsArray = TextureAtlasManager.getTextureCoordinate(BlockType.fromIndex(blockType).getTextureForFace(face));
+                        addFace(vertices, textureCoords, normals, indices, x, y, z, face, index, textureCoordsArray, width, height);
+                        index += 4;
                     }
-
-
                 }
             }
 
@@ -177,6 +226,7 @@ public class Chunk implements Renderable {
             lock.unlock();
         }
     }
+
 
     private void addFace(List<Float> verticesList, List<Float> textureCoordsList, List<Float> normalsList,
                          List<Integer> indicesList, int x, int y, int z, Face face, int index,
