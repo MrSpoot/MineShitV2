@@ -300,8 +300,6 @@ public class Chunk implements Renderable {
             meshModified = true;
             int index = 0;
 
-
-
             index = generateGreedyMeshForTopAndBot(neighboringChunks, Face.TOP, index);
             index = generateGreedyMeshForTopAndBot(neighboringChunks, Face.BOTTOM, index);
             index = generateGreedyMeshForFrontAndBack(neighboringChunks, Face.BACK, index);

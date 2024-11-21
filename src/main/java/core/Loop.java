@@ -20,10 +20,16 @@ public class Loop {
     private double RENDER_TIME = 1.0 / RENDER_TICKS_PER_SECOND;
     private double UPDATE_TIME = 1.0 / UPDATE_TICKS_PER_SECOND;
 
+    private int frames = 0;
+    private int fps = 0;
+
+
+
     //Without Getter
     private double lastSecondTime = 0.0;
     private long lastRenderTime = System.nanoTime();
     private long lastUpdateTime = System.nanoTime();
+    private long lastFPSTime = System.nanoTime();
     private boolean shouldStop = false;
 
     List<LoopAccessable> components = new ArrayList<>();
@@ -41,6 +47,7 @@ public class Loop {
 
             if (RENDER_TICKS_PER_SECOND <= 0 || deltaTimeRender >= RENDER_TIME) {
                 //RENDER
+                frames++;
                 Time.update("render");
                 components.stream().filter(c -> c instanceof Renderer).forEach(c -> ((Renderer) c).render());
                 lastRenderTime = currentTime;
@@ -55,6 +62,13 @@ public class Loop {
                     shouldStop = true;
                     World.cleanup();
                 }
+            }
+
+            if (currentTime - lastFPSTime >= 1000000000) { // 1 seconde écoulée
+                fps = frames;
+                frames = 0;
+                lastFPSTime = currentTime;
+                System.out.println("FPS: " + fps); // Affichage console
             }
 
             glfwPollEvents();
