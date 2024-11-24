@@ -1,18 +1,32 @@
 package core;
 
+import lombok.Getter;
+
 import static org.lwjgl.opengl.GL15.*;
 import static org.lwjgl.opengl.GL20.*;
 import static org.lwjgl.opengl.GL30.*;
 
+@Getter
 public class Mesh {
-    private int vaoId;
-    private int positionsVboId;
-    private int normalsVboId;
-    private int textureCoordsVboId;
-    private int indicesVboId;
-    private int vertexCount;
+    private final int vaoId;
+    private final int positionsVboId;
+    private final int normalsVboId;
+    private final int textureCoordsVboId;
+    private final int indicesVboId;
+    private final int vertexCount;
 
-    public Mesh(float[] positions, float[] normals, float[] textureCoords, int[] indices) {
+    float[] vertices;
+    float[] normals;
+    float[] textureCoords;
+    int[] indices;
+
+    public Mesh(float[] vertices, float[] normals, float[] textureCoords, int[] indices) {
+
+        this.vertices = vertices;
+        this.normals = normals;
+        this.textureCoords = textureCoords;
+        this.indices = indices;
+
         vertexCount = indices.length;
 
         // Créez le VAO
@@ -22,7 +36,7 @@ public class Mesh {
         // Créez le VBO pour les positions
         positionsVboId = glGenBuffers();
         glBindBuffer(GL_ARRAY_BUFFER, positionsVboId);
-        glBufferData(GL_ARRAY_BUFFER, positions, GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, vertices, GL_STATIC_DRAW);
         glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
         glEnableVertexAttribArray(0); // Activer l'attribut position
 
@@ -51,9 +65,11 @@ public class Mesh {
     }
 
     public void render() {
-        glBindVertexArray(vaoId);
-        glDrawElements(GL_TRIANGLES, vertexCount, GL_UNSIGNED_INT, 0);
-        glBindVertexArray(0);
+        if (vertexCount > 0) {
+            glBindVertexArray(vaoId);
+            glDrawElements(GL_TRIANGLES, vertexCount, GL_UNSIGNED_INT, 0);
+            glBindVertexArray(0);
+        }
     }
 
     public void cleanup() {

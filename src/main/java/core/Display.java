@@ -124,7 +124,7 @@ public class Display implements Renderable {
 
             Texture.create("/texture/texture_sheet.png",GL_NEAREST);
 
-            Shader shader = new Shader("src/main/resources/shaders/default.glsl");
+            Shader shader = new Shader("/shaders/default.glsl");
 
             shader.setUniform("uTexture", Texture.getId());
 

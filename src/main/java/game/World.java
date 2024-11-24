@@ -1,5 +1,6 @@
 package game;
 
+import core.Mesh;
 import org.joml.Vector3f;
 import java.util.*;
 import java.util.concurrent.*;
@@ -7,7 +8,7 @@ import java.util.concurrent.*;
 public class World {
 
     private static final Map<Vector3f, Chunk> chunksToRender = new ConcurrentHashMap<>();
-    private static final int RENDER_DISTANCE = 4;
+    private static final int RENDER_DISTANCE = 8;
     private static Vector3f lastPlayerChunkPosition = new Vector3f(Float.MAX_VALUE);
 
     private static final ExecutorService executor = Executors.newFixedThreadPool(1);
@@ -20,6 +21,7 @@ public class World {
         });
     }
 
+
     public static void updateChunks(Vector3f playerPosition) {
         int chunkX = (int) playerPosition.x / Chunk.CHUNK_SIZE;
         int chunkY = (int) playerPosition.y / Chunk.CHUNK_SIZE;
@@ -29,6 +31,7 @@ public class World {
         if (lastPlayerChunkPosition.equals(_playerChunkPosition)) {
             return;
         }
+
         lastPlayerChunkPosition = _playerChunkPosition;
 
         List<Vector3f> chunksToGenerate = getChunksToGenerate(chunkX, chunkY, chunkZ);
@@ -37,7 +40,7 @@ public class World {
 
         for (Vector3f chunkPosition : chunksToGenerate) {
             Future<?> future = executor.submit(() -> {
-                Chunk newChunk = new Chunk(chunkPosition);
+                Chunk newChunk = new Chunk(chunkPosition,getLodWithDistance(lastPlayerChunkPosition,chunkPosition));
                 List<Chunk> neighboringChunks = getNeighboringChunks(newChunk);
 
                 newChunk.updateFaceVisibility(neighboringChunks);
@@ -144,5 +147,20 @@ public class World {
         chunksToRender.clear();
         chunkLoadingTasks.clear();
         executor.shutdown();
+    }
+
+    private static int getLodWithDistance(Vector3f playerPosition, Vector3f chunkPosition) {
+        float distance = playerPosition.distance(chunkPosition);
+
+        if (distance < 12) {
+            return 0;
+        } else if (distance < 16) {
+            return 1;
+        } else if (distance < 32) {
+            return 2;
+        } else {
+            return 3;
+        }
+
     }
 }

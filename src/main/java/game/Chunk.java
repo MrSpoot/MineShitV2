@@ -7,6 +7,7 @@ import game.texture.TextureAtlasManager;
 import game.utils.BlockUtils;
 import game.utils.Face;
 import lombok.Getter;
+import lombok.Setter;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
@@ -16,33 +17,44 @@ import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+@Getter
 public class Chunk implements Renderable {
 
     private final Lock lock = new ReentrantLock();
 
-    @Getter
     private final Vector3f position;
     public static final int CHUNK_SIZE = 32;
-    @Getter
+
     private final short[] chunkData;
+    @Setter
     private Mesh mesh;
     private List<Float> vertices;
     private List<Float> textureCoords;
     private List<Integer> indices;
     private List<Float> normals;
+    private int lod;
 
     private boolean meshModified = false;
 
-    public Chunk(Vector3f position) {
+    public Chunk(Vector3f position, int lod) {
         this.position = position;
-        this.chunkData = GenerationEngine.generateChunkData(position);
+        this.chunkData = GenerationEngine.generateChunkData(position, lod);
+        this.lod = lod;
+    }
+
+    public int getTrianglesNumber(){
+        return indices.size() / 3;
+    }
+
+    private static int getChunkSizeWithLod(int lod){
+        return CHUNK_SIZE / (1 << lod);
     }
 
     @Override
     public void render() {
         if (mesh == null) return;
         Display.shader.useProgram();
-        Matrix4f model = new Matrix4f().identity().translate(position.x * CHUNK_SIZE, position.y * CHUNK_SIZE, position.z * CHUNK_SIZE);
+        Matrix4f model = new Matrix4f().identity().translate(position.x * CHUNK_SIZE, position.y * CHUNK_SIZE, position.z * CHUNK_SIZE).scale(1<<lod);
         Display.shader.setUniform("uModel", model);
         mesh.render();
     }
@@ -68,10 +80,10 @@ public class Chunk implements Renderable {
                 int index = 0;
                 meshModified = true;
 
-                for (int x = 0; x < CHUNK_SIZE; x++) {
-                    for (int y = 0; y < CHUNK_SIZE; y++) {
-                        for (int z = 0; z < CHUNK_SIZE; z++) {
-                            short blockData = chunkData[x + y * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE];
+                for (int x = 0; x < getChunkSizeWithLod(lod); x++) {
+                    for (int y = 0; y < getChunkSizeWithLod(lod); y++) {
+                        for (int z = 0; z < getChunkSizeWithLod(lod); z++) {
+                            short blockData = chunkData[x + y * getChunkSizeWithLod(lod) + z * getChunkSizeWithLod(lod) * getChunkSizeWithLod(lod)];
                             int blockType = BlockUtils.getType(blockData);
 
                             if (blockType == 0) continue;
@@ -95,13 +107,13 @@ public class Chunk implements Renderable {
     }
 
     public int generateGreedyMeshForTopAndBot(List<Chunk> neighboringChunks, Face face, int index) {
-        boolean[][][] visited = new boolean[CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE];
+        boolean[][][] visited = new boolean[getChunkSizeWithLod(lod)][getChunkSizeWithLod(lod)][getChunkSizeWithLod(lod)];
         int _index = index;
-        for (int x = 0; x < CHUNK_SIZE; x++) {
-            for (int y = 0; y < CHUNK_SIZE; y++) {
-                for (int z = 0; z < CHUNK_SIZE; z++) {
+        for (int x = 0; x < getChunkSizeWithLod(lod); x++) {
+            for (int y = 0; y < getChunkSizeWithLod(lod); y++) {
+                for (int z = 0; z < getChunkSizeWithLod(lod); z++) {
 
-                    short blockData = chunkData[x + y * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE];
+                    short blockData = chunkData[x + y * getChunkSizeWithLod(lod) + z * getChunkSizeWithLod(lod) * getChunkSizeWithLod(lod)];
                     int blockType = BlockUtils.getType(blockData);
 
                     if (blockType == 0) continue;
@@ -113,8 +125,8 @@ public class Chunk implements Renderable {
                         int width = 0;
                         int height = 0;
 
-                        for (int j = z; j < CHUNK_SIZE; j++) {
-                            short _blockData = chunkData[x + y * CHUNK_SIZE + j * CHUNK_SIZE * CHUNK_SIZE];
+                        for (int j = z; j < getChunkSizeWithLod(lod); j++) {
+                            short _blockData = chunkData[x + y * getChunkSizeWithLod(lod) + j * getChunkSizeWithLod(lod) * getChunkSizeWithLod(lod)];
                             int _blockType = BlockUtils.getType(_blockData);
 
                             if (_blockType == blockType && BlockUtils.isFaceVisible(_blockData, face) && isFaceVisible(x, y, j, face, neighboringChunks) && !visited[x][y][j]) {
@@ -124,10 +136,10 @@ public class Chunk implements Renderable {
                             }
                         }
 
-                        for (int i = x; i < CHUNK_SIZE; i++) {
+                        for (int i = x; i < getChunkSizeWithLod(lod); i++) {
                             boolean isRowValid = true;
                             for (int j = z; j < z + width; j++) {
-                                short _blockData = chunkData[i + y * CHUNK_SIZE + j * CHUNK_SIZE * CHUNK_SIZE];
+                                short _blockData = chunkData[i + y * getChunkSizeWithLod(lod) + j * getChunkSizeWithLod(lod) * getChunkSizeWithLod(lod)];
                                 int _blockType = BlockUtils.getType(_blockData);
 
                                 if (_blockType != blockType || !BlockUtils.isFaceVisible(_blockData, face) || !isFaceVisible(i, y, j, face, neighboringChunks) || visited[i][y][j]) {
@@ -162,14 +174,14 @@ public class Chunk implements Renderable {
     }
 
     public int generateGreedyMeshForFrontAndBack(List<Chunk> neighboringChunks, Face face, int index) {
-        boolean[][][] visited = new boolean[CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE];
+        boolean[][][] visited = new boolean[getChunkSizeWithLod(lod)][getChunkSizeWithLod(lod)][getChunkSizeWithLod(lod)];
         int _index = index;
 
-        for (int x = 0; x < CHUNK_SIZE; x++) {
-            for (int y = 0; y < CHUNK_SIZE; y++) {
-                for (int z = 0; z < CHUNK_SIZE; z++) {
+        for (int x = 0; x < getChunkSizeWithLod(lod); x++) {
+            for (int y = 0; y < getChunkSizeWithLod(lod); y++) {
+                for (int z = 0; z < getChunkSizeWithLod(lod); z++) {
 
-                    short blockData = chunkData[x + y * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE];
+                    short blockData = chunkData[x + y * getChunkSizeWithLod(lod) + z * getChunkSizeWithLod(lod) * getChunkSizeWithLod(lod)];
                     int blockType = BlockUtils.getType(blockData);
 
                     if (blockType == 0 || visited[x][y][z]) continue;
@@ -180,8 +192,8 @@ public class Chunk implements Renderable {
                         int height = 0;
 
                         // Largeur (le long de l'axe X)
-                        for (int dx = x; dx < CHUNK_SIZE; dx++) {
-                            short _blockData = chunkData[dx + y * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE];
+                        for (int dx = x; dx < getChunkSizeWithLod(lod); dx++) {
+                            short _blockData = chunkData[dx + y * getChunkSizeWithLod(lod) + z * getChunkSizeWithLod(lod) * getChunkSizeWithLod(lod)];
                             int _blockType = BlockUtils.getType(_blockData);
 
                             if (_blockType == blockType && BlockUtils.isFaceVisible(_blockData, face) && isFaceVisible(dx, y, z, face, neighboringChunks) && !visited[dx][y][z]) {
@@ -192,10 +204,10 @@ public class Chunk implements Renderable {
                         }
 
                         // Hauteur (le long de l'axe Y)
-                        for (int dy = y; dy < CHUNK_SIZE; dy++) {
+                        for (int dy = y; dy < getChunkSizeWithLod(lod); dy++) {
                             boolean isRowValid = true;
                             for (int dx = x; dx < x + width; dx++) {
-                                short _blockData = chunkData[dx + dy * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE];
+                                short _blockData = chunkData[dx + dy * getChunkSizeWithLod(lod) + z * getChunkSizeWithLod(lod) * getChunkSizeWithLod(lod)];
                                 int _blockType = BlockUtils.getType(_blockData);
 
                                 if (_blockType != blockType || !BlockUtils.isFaceVisible(_blockData, face) || !isFaceVisible(dx, dy, z, face, neighboringChunks) ||visited[dx][dy][z]) {
@@ -227,14 +239,14 @@ public class Chunk implements Renderable {
     }
 
     public int generateGreedyMeshForLeftAndRight(List<Chunk> neighboringChunks, Face face, int index) {
-        boolean[][][] visited = new boolean[CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE];
+        boolean[][][] visited = new boolean[getChunkSizeWithLod(lod)][getChunkSizeWithLod(lod)][getChunkSizeWithLod(lod)];
         int _index = index;
 
-        for (int z = 0; z < CHUNK_SIZE; z++) {
-            for (int y = 0; y < CHUNK_SIZE; y++) {
-                for (int x = 0; x < CHUNK_SIZE; x++) {
+        for (int z = 0; z < getChunkSizeWithLod(lod); z++) {
+            for (int y = 0; y < getChunkSizeWithLod(lod); y++) {
+                for (int x = 0; x < getChunkSizeWithLod(lod); x++) {
 
-                    short blockData = chunkData[x + y * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE];
+                    short blockData = chunkData[x + y * getChunkSizeWithLod(lod) + z * getChunkSizeWithLod(lod) * getChunkSizeWithLod(lod)];
                     int blockType = BlockUtils.getType(blockData);
 
                     if (blockType == 0 || visited[x][y][z]) continue;
@@ -244,8 +256,8 @@ public class Chunk implements Renderable {
                         int width = 0, height = 0;
 
                         // Largeur (le long de l'axe Z)
-                        for (int dz = z; dz < CHUNK_SIZE; dz++) {
-                            short _blockData = chunkData[x + y * CHUNK_SIZE + dz * CHUNK_SIZE * CHUNK_SIZE];
+                        for (int dz = z; dz < getChunkSizeWithLod(lod); dz++) {
+                            short _blockData = chunkData[x + y * getChunkSizeWithLod(lod) + dz * getChunkSizeWithLod(lod) * getChunkSizeWithLod(lod)];
                             int _blockType = BlockUtils.getType(_blockData);
 
                             if (_blockType == blockType && BlockUtils.isFaceVisible(_blockData, face) && isFaceVisible(x, y, dz, face, neighboringChunks) && !visited[x][y][dz]) {
@@ -256,10 +268,10 @@ public class Chunk implements Renderable {
                         }
 
                         // Hauteur (le long de l'axe Y)
-                        for (int dy = y; dy < CHUNK_SIZE; dy++) {
+                        for (int dy = y; dy < getChunkSizeWithLod(lod); dy++) {
                             boolean isRowValid = true;
                             for (int dz = z; dz < z + width; dz++) {
-                                short _blockData = chunkData[x + dy * CHUNK_SIZE + dz * CHUNK_SIZE * CHUNK_SIZE];
+                                short _blockData = chunkData[x + dy * getChunkSizeWithLod(lod) + dz * getChunkSizeWithLod(lod) * getChunkSizeWithLod(lod)];
                                 int _blockType = BlockUtils.getType(_blockData);
 
                                 if (_blockType != blockType || !BlockUtils.isFaceVisible(_blockData, face) || !isFaceVisible(x, dy, dz, face, neighboringChunks) || visited[x][dy][dz]) {
@@ -343,28 +355,6 @@ public class Chunk implements Renderable {
         indicesList.add(index);
     }
 
-
-    public void updateFaceVisibility(List<Chunk> neighboringChunks) {
-        for (int x = 0; x < CHUNK_SIZE; x++) {
-            for (int y = 0; y < CHUNK_SIZE; y++) {
-                for (int z = 0; z < CHUNK_SIZE; z++) {
-                    short blockData = chunkData[x + y * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE];
-                    int blockType = BlockUtils.getType(blockData);
-
-                    if (blockType == 0) continue;
-
-                    for (Face face : Face.values()) {
-                        boolean visible = isFaceVisible(x, y, z, face, neighboringChunks);
-                        BlockUtils.setFaceVisibility(blockData, face, visible);
-                    }
-
-                    chunkData[x + y * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE] = blockData;
-                    meshModified = true;
-                }
-            }
-        }
-    }
-
     public void createMesh() {
         lock.lock();
         try {
@@ -392,33 +382,63 @@ public class Chunk implements Renderable {
             case BOTTOM -> adjacentY -= 1;
         }
 
-        if (adjacentX >= 0 && adjacentX < CHUNK_SIZE &&
-                adjacentY >= 0 && adjacentY < CHUNK_SIZE &&
-                adjacentZ >= 0 && adjacentZ < CHUNK_SIZE) {
-            short neighborData = chunkData[adjacentX + adjacentY * CHUNK_SIZE + adjacentZ * CHUNK_SIZE * CHUNK_SIZE];
+        int chunkSize = getChunkSizeWithLod(lod);
+
+        // Vérification interne au chunk
+        if (adjacentX >= 0 && adjacentX < chunkSize &&
+                adjacentY >= 0 && adjacentY < chunkSize &&
+                adjacentZ >= 0 && adjacentZ < chunkSize) {
+            short neighborData = chunkData[adjacentX + adjacentY * chunkSize + adjacentZ * chunkSize * chunkSize];
             return BlockUtils.getType(neighborData) == 0;
         }
 
+        // Vérification avec les chunks voisins
         Vector3f offset = new Vector3f();
         if (adjacentX < 0) offset.x = -1;
-        if (adjacentX >= CHUNK_SIZE) offset.x = 1;
+        if (adjacentX >= chunkSize) offset.x = 1;
         if (adjacentY < 0) offset.y = -1;
-        if (adjacentY >= CHUNK_SIZE) offset.y = 1;
+        if (adjacentY >= chunkSize) offset.y = 1;
         if (adjacentZ < 0) offset.z = -1;
-        if (adjacentZ >= CHUNK_SIZE) offset.z = 1;
+        if (adjacentZ >= chunkSize) offset.z = 1;
 
         for (Chunk neighbor : neighboringChunks) {
             if (neighbor.getPosition().equals(new Vector3f(position).add(offset))) {
-                int neighborX = (adjacentX + CHUNK_SIZE) % CHUNK_SIZE;
-                int neighborY = (adjacentY + CHUNK_SIZE) % CHUNK_SIZE;
-                int neighborZ = (adjacentZ + CHUNK_SIZE) % CHUNK_SIZE;
+                int neighborX = (adjacentX + getChunkSizeWithLod(lod)) % getChunkSizeWithLod(lod);
+                int neighborY = (adjacentY + getChunkSizeWithLod(lod)) % getChunkSizeWithLod(lod);
+                int neighborZ = (adjacentZ + getChunkSizeWithLod(lod)) % getChunkSizeWithLod(lod);
 
-                short neighborBlockData = neighbor.getChunkData()[neighborX + neighborY * CHUNK_SIZE + neighborZ * CHUNK_SIZE * CHUNK_SIZE];
+                short neighborBlockData = neighbor.getChunkData()[neighborX + neighborY * getChunkSizeWithLod(lod) + neighborZ * getChunkSizeWithLod(lod) * getChunkSizeWithLod(lod)];
                 return BlockUtils.getType(neighborBlockData) == 0;
             }
         }
-        return true;
+
+        return true; // Si aucun voisin n'est trouvé, considérer la face visible
     }
+
+    public void updateFaceVisibility(List<Chunk> neighboringChunks) {
+        int chunkSize = getChunkSizeWithLod(lod);
+
+        for (int x = 0; x < chunkSize; x++) {
+            for (int y = 0; y < chunkSize; y++) {
+                for (int z = 0; z < chunkSize; z++) {
+                    short blockData = chunkData[x + y * chunkSize + z * chunkSize * chunkSize];
+                    int blockType = BlockUtils.getType(blockData);
+
+                    if (blockType == 0) continue;
+
+                    for (Face face : Face.values()) {
+                        boolean visible = isFaceVisible(x, y, z, face, neighboringChunks);
+                        BlockUtils.setFaceVisibility(blockData, face, visible);
+                    }
+
+                    chunkData[x + y * chunkSize + z * chunkSize * chunkSize] = blockData;
+                    meshModified = true;
+                }
+            }
+        }
+    }
+
+
 
     private void addFace(List<Float> verticesList, List<Float> textureCoordsList, List<Float> normalsList, List<Integer> indicesList, int x, int y, int z, Face face, int index, float[] textureCoords) {
         float[][] positions = getFacePositions(x, y, z, face);
