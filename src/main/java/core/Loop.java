@@ -4,7 +4,6 @@ import core.interfaces.LoopAccessable;
 import core.interfaces.Renderable;
 import core.interfaces.Updatable;
 import core.manager.Input;
-import game.World;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,13 +16,11 @@ public class Loop {
     //With Getter
     private int RENDER_TICKS_PER_SECOND = 500;
     private int UPDATE_TICKS_PER_SECOND = 500;
-    private double RENDER_TIME = 1.0 / RENDER_TICKS_PER_SECOND;
-    private double UPDATE_TIME = 1.0 / UPDATE_TICKS_PER_SECOND;
+    private double RENDER_TIME;
+    private double UPDATE_TIME;
 
     private int frames = 0;
     private int fps = 0;
-
-
 
     //Without Getter
     private double lastSecondTime = 0.0;
@@ -37,6 +34,8 @@ public class Loop {
     private Loop(int render, int update) {
         this.RENDER_TICKS_PER_SECOND = render;
         this.UPDATE_TICKS_PER_SECOND = update;
+        this.RENDER_TIME = 1.0 / RENDER_TICKS_PER_SECOND;
+        this.UPDATE_TIME = 1.0 / UPDATE_TICKS_PER_SECOND;
     }
 
     public void run(){
@@ -60,7 +59,6 @@ public class Loop {
                 lastUpdateTime = currentTime;
                 if(Input.isPressed("exit")){
                     shouldStop = true;
-                    World.cleanup();
                 }
             }
 

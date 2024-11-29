@@ -1,9 +1,6 @@
 package core;
 
 import core.interfaces.Renderable;
-import core.interfaces.Updatable;
-import core.manager.Input;
-import game.texture.Texture;
 import lombok.Getter;
 import org.lwjgl.glfw.GLFWVidMode;
 import org.lwjgl.opengl.GL;
@@ -85,7 +82,9 @@ public class Display implements Renderable {
             glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
             glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
-            glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+            glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+            glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+            glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
             glfwWindowHint(GLFW_SAMPLES, 4);
 
@@ -111,7 +110,7 @@ public class Display implements Renderable {
             glfwSetInputMode(id,GLFW_CURSOR,GLFW_CURSOR_DISABLED);
             GL.createCapabilities();
 
-            glEnable(GL_CULL_FACE);
+            //glEnable(GL_CULL_FACE);
             glCullFace(GL_BACK);
 
             glEnable(GL_DEPTH_TEST);
@@ -122,11 +121,7 @@ public class Display implements Renderable {
             glfwShowWindow(id);
             glfwSetWindowTitle(id,this.title);
 
-            Texture.create("/texture/texture_sheet.png",GL_NEAREST);
-
             Shader shader = new Shader("/shaders/default.glsl");
-
-            shader.setUniform("uTexture", Texture.getId());
 
             return new Display(id, title, width, height,loop,shader);
         }

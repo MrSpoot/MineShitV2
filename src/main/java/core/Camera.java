@@ -2,7 +2,6 @@ package core;
 
 import core.interfaces.Updatable;
 import core.manager.Input;
-import game.World;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Matrix4f;
@@ -10,7 +9,6 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import static org.joml.Math.*;
-import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
 
 public class Camera implements Updatable  {
@@ -30,7 +28,7 @@ public class Camera implements Updatable  {
     private float yaw = 0.0f;
 
     public Camera(float fov, float aspectRatio, float nearPlane, float farPlane, Loop loop) {
-        this.position = new Vector3f(2, 5, 10);
+        this.position = new Vector3f(0, 0, 0);
         this.rotation = new Quaternionf();
         this.fov = fov;
         this.aspectRatio = aspectRatio;
@@ -71,21 +69,16 @@ public class Camera implements Updatable  {
         }
 
         if(Input.isPressed("display_wireframe")){
-            glPolygonMode(GL_FRONT, GL_LINE);
-            glPolygonMode(GL_BACK, GL_LINE);
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         }
 
         if(Input.isPressed("display_fill")){
-            glPolygonMode(GL_FRONT, GL_FILL);
-            glPolygonMode(GL_BACK, GL_FILL);
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         }
 
         velocity.mul(cameraSpeed);
 
         position.add(velocity);
-
-        World.updateChunks(position);
-        //World.updateChunks(new Vector3f(0));
     }
 
     private float clamp(float value, float min, float max) {
