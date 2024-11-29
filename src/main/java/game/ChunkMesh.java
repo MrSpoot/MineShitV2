@@ -12,7 +12,10 @@ public class ChunkMesh {
         this.chunk = chunk;
     }
 
+    private boolean dataIsModified = false;
+
     public void generate() {
+        dataIsModified = true;
         List<Integer> positions = new ArrayList<>();
         List<Integer> normals = new ArrayList<>();
         List<Integer> indices = new ArrayList<>();
@@ -63,13 +66,16 @@ public class ChunkMesh {
 
 
     public void compile(){
-        if(mesh != null){
+        if(mesh != null || dataIsModified){
+            assert mesh != null;
             mesh.compile();
         }
+        dataIsModified = false;
     }
 
     public void render(){
         if(mesh != null){
+            System.out.println("RENDERING");
             mesh.render();
         }
     }
@@ -91,7 +97,7 @@ public class ChunkMesh {
             return neighbor == 0;
         }
 
-        return true;
+        return false;
     }
 
 

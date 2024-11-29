@@ -4,6 +4,7 @@ import core.interfaces.LoopAccessable;
 import core.interfaces.Renderable;
 import core.interfaces.Updatable;
 import core.manager.Input;
+import game.World;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -76,6 +77,7 @@ public class Loop {
             }
 
         }
+        World.shutdown();
         glfwTerminate();
     }
 

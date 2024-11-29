@@ -2,6 +2,7 @@ package core;
 
 import core.interfaces.Updatable;
 import core.manager.Input;
+import game.World;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Matrix4f;
@@ -79,6 +80,8 @@ public class Camera implements Updatable  {
         velocity.mul(cameraSpeed);
 
         position.add(velocity);
+
+        World.update();
     }
 
     private float clamp(float value, float min, float max) {

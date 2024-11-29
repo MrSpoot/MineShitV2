@@ -1,6 +1,7 @@
 package game;
 
 import lombok.Getter;
+import lombok.Setter;
 import org.joml.Vector3f;
 import org.joml.Vector3i;
 
@@ -26,6 +27,9 @@ public class Chunk {
     @Getter
     private final Map<FaceDirection, Chunk> neighbors;
 
+    @Getter @Setter
+    private boolean isModified = true;
+
     public Chunk(Vector3i position) {
         this.isUniform = true;
         this.uniformBlockId = 0;
@@ -37,10 +41,12 @@ public class Chunk {
 
     public void addNeighbor(FaceDirection direction, Chunk neighbor) {
         this.neighbors.put(direction, neighbor);
+        this.generateMesh();
     }
 
     public void removeNeighbor(FaceDirection direction) {
         this.neighbors.remove(direction);
+        this.generateMesh();
     }
 
     public Chunk getNeighbor(FaceDirection direction) {
@@ -48,11 +54,13 @@ public class Chunk {
     }
 
     public void generateMesh(){
+        this.isUniform = true;
         this.chunkMesh.generate();
     }
 
     public void compileMesh(){
         chunkMesh.compile();
+        this.isModified = false;
     }
 
     public void render(){
@@ -75,6 +83,7 @@ public class Chunk {
     }
 
     public void setBlock(int x, int y, int z, short blockId) {
+        this.generateMesh();
         if (isUniform) {
             if (blockId == uniformBlockId) {
                 return;
@@ -115,6 +124,7 @@ public class Chunk {
     }
 
     public void removeBlock(int x, int y, int z) {
+        this.generateMesh();
         setBlock(x, y, z, (short) 0);
 
         if (!isUniform) {
