@@ -110,7 +110,7 @@ public class Display implements Renderable {
             glfwSetInputMode(id,GLFW_CURSOR,GLFW_CURSOR_DISABLED);
             GL.createCapabilities();
 
-            //glEnable(GL_CULL_FACE);
+            glEnable(GL_CULL_FACE);
             glCullFace(GL_BACK);
 
             glEnable(GL_DEPTH_TEST);

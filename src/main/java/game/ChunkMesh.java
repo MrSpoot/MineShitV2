@@ -24,30 +24,31 @@ public class ChunkMesh {
                 for (int z = 0; z < Chunk.SIZE; z++) {
                     short block = chunk.getBlock(x, y, z);
                     if (block > 0) {
-                        if (shouldRenderFace(chunk, x, y, z + 1)) { // Face avant
-                            addFace(positions, normals, indices, x, y, z, FaceDirection.FRONT, vertexCount);
-                            vertexCount += 4;
-                        }
-                        if (shouldRenderFace(chunk, x, y, z - 1)) { // Face arrière
+                        if (shouldRenderFace(x, y, z - 1, FaceDirection.BACK)) {
                             addFace(positions, normals, indices, x, y, z, FaceDirection.BACK, vertexCount);
                             vertexCount += 4;
                         }
-                        if (shouldRenderFace(chunk, x - 1, y, z)) { // Face gauche
+                        if (shouldRenderFace(x, y, z + 1, FaceDirection.FRONT)) {
+                            addFace(positions, normals, indices, x, y, z, FaceDirection.FRONT, vertexCount);
+                            vertexCount += 4;
+                        }
+                        if (shouldRenderFace(x - 1, y, z, FaceDirection.LEFT)) {
                             addFace(positions, normals, indices, x, y, z, FaceDirection.LEFT, vertexCount);
                             vertexCount += 4;
                         }
-                        if (shouldRenderFace(chunk, x + 1, y, z)) { // Face droite
+                        if (shouldRenderFace(x + 1, y, z, FaceDirection.RIGHT)) {
                             addFace(positions, normals, indices, x, y, z, FaceDirection.RIGHT, vertexCount);
                             vertexCount += 4;
                         }
-                        if (shouldRenderFace(chunk, x, y + 1, z)) { // Face supérieure
+                        if (shouldRenderFace(x, y + 1, z, FaceDirection.TOP)) {
                             addFace(positions, normals, indices, x, y, z, FaceDirection.TOP, vertexCount);
                             vertexCount += 4;
                         }
-                        if (shouldRenderFace(chunk, x, y - 1, z)) { // Face inférieure
+                        if (shouldRenderFace(x, y - 1, z, FaceDirection.BOTTOM)) {
                             addFace(positions, normals, indices, x, y, z, FaceDirection.BOTTOM, vertexCount);
                             vertexCount += 4;
                         }
+
                     }
                 }
             }
@@ -73,13 +74,26 @@ public class ChunkMesh {
         }
     }
 
-    private boolean shouldRenderFace(Chunk chunk, int x, int y, int z) {
-        if (x < 0 || x >= Chunk.SIZE || y < 0 || y >= Chunk.SIZE || z < 0 || z >= Chunk.SIZE) {
-            return true;
+    private boolean shouldRenderFace(int x, int y, int z, FaceDirection faceDir) {
+        if (x >= 0 && x < Chunk.SIZE && y >= 0 && y < Chunk.SIZE && z >= 0 && z < Chunk.SIZE) {
+            short neighbor = chunk.getBlock(x, y, z);
+            return neighbor == 0;
         }
-        short neighbor = chunk.getBlock(x, y, z);
-        return neighbor == 0;
+
+        Chunk neighborChunk = chunk.getNeighbor(faceDir);
+
+        if (neighborChunk != null) {
+            int neighborX = (x + Chunk.SIZE) % Chunk.SIZE;
+            int neighborY = (y + Chunk.SIZE) % Chunk.SIZE;
+            int neighborZ = (z + Chunk.SIZE) % Chunk.SIZE;
+
+            short neighbor = neighborChunk.getBlock(neighborX, neighborY, neighborZ);
+            return neighbor == 0;
+        }
+
+        return true;
     }
+
 
     private void addFace(List<Integer> positions, List<Integer> normals, List<Integer> indices,
                          int x, int y, int z, FaceDirection faceDir, int vertexStartIndex) {
@@ -149,15 +163,6 @@ public class ChunkMesh {
                     };
             default -> throw new IllegalArgumentException("Direction de face inconnue : " + faceDir);
         };
-    }
-
-    enum FaceDirection {
-        FRONT,
-        BACK,
-        LEFT,
-        RIGHT,
-        TOP,
-        BOTTOM
     }
 
 }

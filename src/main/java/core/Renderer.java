@@ -2,11 +2,14 @@ package core;
 
 import core.interfaces.Renderable;
 import game.Chunk;
+import game.FaceDirection;
 import org.joml.Matrix4f;
 import org.joml.Vector3i;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.lwjgl.glfw.GLFW.glfwSwapBuffers;
 import static org.lwjgl.opengl.GL11.*;
@@ -18,8 +21,8 @@ public class Renderer implements Renderable {
     private final Camera camera;
     private final List<Renderable> renderables;
 
-    private final List<Chunk> chunks = new ArrayList<>();
-    private final int chunkRenderDistance = 0;
+    private final Map<Vector3i,Chunk> chunks = new HashMap<>();
+    private final int chunkRenderDistance = 16;
 
     private Renderer(Display display, Loop loop, Camera camera, List<Renderable> renderables) {
         this.display = display;
@@ -35,15 +38,42 @@ public class Renderer implements Renderable {
     private void generateChunks() {
         for (int x = -chunkRenderDistance; x <= chunkRenderDistance; x++) {
             for (int z = -chunkRenderDistance; z <= chunkRenderDistance; z++) {
-                Chunk chunk = new Chunk(new Vector3i(x,0,z));
-                chunk.fillChunk((short) 1);
-                chunk.generateMesh();
-                chunk.compileMesh();
-                chunks.add(chunk);
+                for(int y = -chunkRenderDistance; y <= chunkRenderDistance; y++) {
+                    Chunk chunk = new Chunk(new Vector3i(x, y, z));
+                    connectChunk(chunk);
+                    chunks.put(chunk.getPosition(),chunk);
+                }
+            }
+        }
+
+        for(Chunk chunk : chunks.values()) {
+            chunk.generateMesh();
+            chunk.compileMesh();
+        }
+    }
+
+    private void connectChunk(Chunk newChunk) {
+        Vector3i position = newChunk.getPosition();
+
+        for (FaceDirection direction : FaceDirection.values()) {
+            Vector3i neighborPos = position.add(direction.getOffset());
+            Chunk neighbor = chunks.get(neighborPos);
+            if (neighbor != null) {
+                newChunk.addNeighbor(direction, neighbor);
+                neighbor.addNeighbor(direction.getOpposite(), newChunk);
             }
         }
     }
 
+    private void disconnectChunk(Chunk chunk) {
+        for (FaceDirection direction : FaceDirection.values()) {
+            Chunk neighbor = chunk.getNeighbor(direction);
+            if (neighbor != null) {
+                neighbor.removeNeighbor(direction.getOpposite());
+                chunk.removeNeighbor(direction);
+            }
+        }
+    }
 
     @Override
     public void render(){
@@ -57,8 +87,8 @@ public class Renderer implements Renderable {
 
         this.renderables.forEach(Renderable::render);
 
-        for (Chunk chunk : chunks) {
-            Matrix4f modelMatrix = new Matrix4f().translation(chunk.getPosition().x * Chunk.SIZE, 0.0f, chunk.getPosition().z * Chunk.SIZE);
+        for (Chunk chunk : chunks.values()) {
+            Matrix4f modelMatrix = new Matrix4f().translation(chunk.getPosition().x * Chunk.SIZE, chunk.getPosition().y * Chunk.SIZE, chunk.getPosition().z * Chunk.SIZE);
             Display.shader.setUniform("uModel", modelMatrix);
             chunk.render();
         }

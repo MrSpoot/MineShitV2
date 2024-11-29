@@ -5,7 +5,9 @@ import org.joml.Vector3f;
 import org.joml.Vector3i;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Chunk {
     public static final int SIZE = 32;
@@ -21,12 +23,28 @@ public class Chunk {
 
     @Getter
     private final Vector3i position;
+    @Getter
+    private final Map<FaceDirection, Chunk> neighbors;
 
     public Chunk(Vector3i position) {
         this.isUniform = true;
         this.uniformBlockId = 0;
         this.chunkMesh = new ChunkMesh(this);
         this.position = position;
+        this.neighbors = new HashMap<>();
+        GenerationEngine.generateChunkData(this,0);
+    }
+
+    public void addNeighbor(FaceDirection direction, Chunk neighbor) {
+        this.neighbors.put(direction, neighbor);
+    }
+
+    public void removeNeighbor(FaceDirection direction) {
+        this.neighbors.remove(direction);
+    }
+
+    public Chunk getNeighbor(FaceDirection direction) {
+        return this.neighbors.get(direction);
     }
 
     public void generateMesh(){
