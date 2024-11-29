@@ -99,7 +99,7 @@ public class Mesh {
     }
 
     public void render() {
-        if(isCompiled) {
+        if(isCompiled && vertexCount > 0) {
             glBindVertexArray(vaoId);
             glDrawElements(GL_TRIANGLES, vertexCount, GL_UNSIGNED_INT, 0);
             glBindVertexArray(0);

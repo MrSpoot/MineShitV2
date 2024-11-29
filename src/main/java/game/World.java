@@ -12,7 +12,7 @@ public class World {
     private static final Map<Vector3i, Chunk> chunks = new ConcurrentHashMap<>();
     private static final Queue<Chunk> chunksToCompile = new ConcurrentLinkedQueue<>();
     private static final int chunkRenderDistance = 8;
-    private static final ExecutorService executor = Executors.newFixedThreadPool(2);
+    private static final ExecutorService executor = Executors.newFixedThreadPool(8);
 
     public static void generateChunks() {
         for (int x = -chunkRenderDistance; x <= chunkRenderDistance; x++) {
@@ -38,12 +38,6 @@ public class World {
         Chunk chunk;
         while ((chunk = chunksToCompile.poll()) != null) {
             chunk.compileMesh();
-        }
-
-        for(Chunk chunk1 : chunks.values()) {
-            if(chunk1 != null && chunk1.isModified()) {
-                chunksToCompile.add(chunk1);
-            }
         }
     }
 
