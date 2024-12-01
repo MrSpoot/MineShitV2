@@ -2,12 +2,8 @@ package game;
 
 import lombok.Getter;
 
-import java.nio.IntBuffer;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-
 import static org.lwjgl.opengl.GL15C.glGenBuffers;
 import static org.lwjgl.opengl.GL30C.*;
 import static org.lwjgl.opengl.GL31C.glDrawArraysInstanced;
@@ -54,15 +50,12 @@ public class ChunkMesh {
     }
 
     public void compile() {
-        // Génère un VAO
         this.vaoId = glGenVertexArrays();
         glBindVertexArray(this.vaoId);
 
-        // VBO pour les sommets de base (aBaseVertex)
         int baseVertexVboId = glGenBuffers();
         glBindBuffer(GL_ARRAY_BUFFER, baseVertexVboId);
 
-        // Exemple de données pour aBaseVertex (6 sommets pour une face carrée)
         float[] baseVertexData = {
                 1.0f, 0.0f, 0.0f,
                 0.0f, 0.0f, 0.0f,
@@ -74,11 +67,9 @@ public class ChunkMesh {
         };
         glBufferData(GL_ARRAY_BUFFER, baseVertexData, GL_STATIC_DRAW);
 
-        // Associe aBaseVertex (location = 0) au VBO
         glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
         glEnableVertexAttribArray(0);
 
-        // VBO pour les données d'instance (aInstanceData)
         this.vboId = glGenBuffers();
         glBindBuffer(GL_ARRAY_BUFFER, this.vboId);
 

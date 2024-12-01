@@ -9,15 +9,15 @@ public class GenerationEngine {
     private static final int BASE_HEIGHT = 10;
 
     public static short[] generateChunkData(Chunk chunk, int lod) {
-        int chunkSize = Chunk.SIZE / (1 << lod);
+        int chunkSize = Chunk.SIZE;
         short[] blocks = new short[chunkSize * chunkSize * chunkSize];
 
         for (int x = 0; x < chunkSize; x++) {
             for (int y = 0; y < chunkSize; y++) {
                 for (int z = 0; z < chunkSize; z++) {
-                    float globalX = chunk.getPosition().x * chunkSize + x * (1 << lod);
-                    float globalY = chunk.getPosition().y * chunkSize + y * (1 << lod);
-                    float globalZ = chunk.getPosition().z * chunkSize + z * (1 << lod);
+                    float globalX = (chunk.getPosition().x << 5) + x;
+                    float globalY = (chunk.getPosition().y << 5) + y;
+                    float globalZ = (chunk.getPosition().z << 5) + z;
 
                     float terrainNoise = SimplexNoise.noise(globalX * 0.01f, globalZ * 0.01f) * AMPLITUDE;
                     float mountainNoise = SimplexNoise.noise(globalX * 0.0005f, globalZ * 0.0005f) * (AMPLITUDE * 2);

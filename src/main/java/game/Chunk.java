@@ -34,6 +34,7 @@ public class Chunk {
         this.position = position;
         this.neighbors = new HashMap<>();
         GenerationEngine.generateChunkData(this,0);
+        //fillChunk((short) 1);
     }
 
     public void addNeighbor(FaceDirection direction, Chunk neighbor) {

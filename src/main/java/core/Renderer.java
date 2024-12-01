@@ -1,11 +1,14 @@
 package core;
 
 import core.interfaces.Renderable;
+import core.manager.Input;
 import game.Chunk;
 import game.FaceDirection;
 import game.World;
 import org.joml.Matrix4f;
 import org.joml.Vector3i;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -22,21 +25,14 @@ public class Renderer implements Renderable {
     private final Camera camera;
     private final List<Renderable> renderables;
 
-    private final Chunk chunk;
-
     private Renderer(Display display, Loop loop, Camera camera, List<Renderable> renderables) {
         this.display = display;
         this.loop = loop;
         this.camera = camera;
         this.renderables = renderables;
 
-        //World.generateChunks();
-
-        this.chunk = new Chunk(new Vector3i(0));
-        //this.chunk.fillChunk((short) 1);
-        //this.chunk.removeBlock(31,31,31);
-        this.chunk.generateMesh();
-        this.chunk.compileMesh();
+        World.generateChunks();
+        World.compile();
 
         loop.addComponent(this);
     }
@@ -54,9 +50,7 @@ public class Renderer implements Renderable {
 
         this.renderables.forEach(Renderable::render);
 
-        this.chunk.render();
-
-        //World.render();
+        World.render();
 
         glfwSwapBuffers(this.display.getId());
     }

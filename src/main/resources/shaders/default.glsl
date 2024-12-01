@@ -1,14 +1,16 @@
 //@vs
-#version 430 core
+#version 460 core
 
 layout(location = 0) in vec3 aBaseVertex; // Vertices d'une face définie dans le shader
 layout(location = 1) in uint aInstanceData; // Données compressées pour l'instance
 
-uniform mat4 uModel;
 uniform mat4 uView;
 uniform mat4 uProjection;
 
-out vec3 Normal; // Normale pour le fragment shader
+layout(std430, binding = 0) buffer ChunkPositions {
+    vec3 chunkPosition[];
+};
+
 out vec3 FragPos; // Position pour le fragment shader
 
 const int FACE_BACK = 0;
@@ -19,7 +21,6 @@ const int FACE_BOTTOM = 4;
 const int FACE_TOP = 5;
 
 vec3 decodePosition(uint encodedInstance) {
-    // Décoder x, y, z à partir des bits respectifs
     uint x = encodedInstance & 0x1Fu;           // Bits 0-4
     uint y = (encodedInstance >> 5u) & 0x1Fu;   // Bits 5-9
     uint z = (encodedInstance >> 10u) & 0x1Fu;  // Bits 10-14
@@ -31,19 +32,21 @@ int decodeFace(uint encodedInstance) {
 }
 
 vec3 decodeNormal(uint encodedInstance) {
-    uint normal = decodeFace(encodedInstance);         // Orientation (3 bits)
+    uint normal = decodeFace(encodedInstance);
     if (normal == 0u) return vec3(0.0, 0.0, 1.0);        // FRONT
     if (normal == 1u) return vec3(0.0, 0.0, -1.0);       // BACK
     if (normal == 2u) return vec3(1.0, 0.0, 0.0);        // RIGHT
     if (normal == 3u) return vec3(-1.0, 0.0, 0.0);       // LEFT
     if (normal == 4u) return vec3(0.0, 1.0, 0.0);        // TOP
     if (normal == 5u) return vec3(0.0, -1.0, 0.0);       // BOTTOM
-    return vec3(0.0, 0.0, 0.0); // Normale par défaut (ne devrait pas arriver)
+    return vec3(0.0, 0.0, 0.0);
 }
 
 void main() {
-    vec3 instancePos = decodePosition(aInstanceData); // Position de l'instance
-    vec3 normal = decodeNormal(aInstanceData);        // Normale de l'instance
+
+    uint drawIndex = gl_DrawID;
+
+    vec3 instancePos = decodePosition(aInstanceData);
 
     vec3 basePos = aBaseVertex;
 
@@ -63,33 +66,24 @@ void main() {
         basePos.z++;
     }
 
+    vec3 offset = chunkPosition[drawIndex] * 32;
     basePos = basePos + instancePos;
 
-    mat3 normalMatrix = transpose(inverse(mat3(uModel)));
-    Normal = normalize(normalMatrix * normal);
+    FragPos = basePos;
 
-    FragPos = (uModel * vec4(basePos, 1.0)).xyz;
-    gl_Position = uProjection * uView * vec4(FragPos, 1.0);
+    gl_Position = uProjection * uView * vec4(basePos + offset, 1.0);
 }
 //@endvs
 
 //@fs
-#version 430 core
+#version 460 core
 
-in vec3 Normal; // Normale venant du vertex shader
-in vec3 FragPos; // Position du fragment dans l'espace monde
+in vec3 FragPos;
 
 out vec4 FragColor;
 
 void main() {
-    // Calcul de l'éclairage
-    vec3 normal = normalize(Normal);
-    vec3 lightDir = normalize(vec3(0.0, 1.0, 0.0)); // Direction de la lumière
-    float lightIntensity = max(dot(normal, lightDir), 0.5);
-
-    // Utiliser la position du fragment pour générer une couleur (dépend de ton style)
-    //vec3 color = vec3(FragPos.x / 32.0, FragPos.y / 32.0, FragPos.z / 32.0) * lightIntensity;
-    vec3 color = abs(normal);
+    vec3 color = vec3(FragPos.x / 32.0, FragPos.y / 32.0, FragPos.z / 32.0);
 
     FragColor = vec4(color, 1.0);
 }

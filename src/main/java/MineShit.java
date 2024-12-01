@@ -17,6 +17,8 @@ public class MineShit {
                 .touch(new InputTouch("sprint",GLFW_KEY_LEFT_SHIFT))
                 .touch(new InputTouch("display_wireframe",GLFW_KEY_P))
                 .touch(new InputTouch("display_fill",GLFW_KEY_O))
+                .touch(new InputTouch("rendermod_1",GLFW_KEY_L))
+                .touch(new InputTouch("rendermod_2",GLFW_KEY_K))
                 .build();
 
         Input.init(inputer);

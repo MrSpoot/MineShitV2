@@ -23,8 +23,8 @@ public class Camera implements Updatable  {
     private float aspectRatio;
     private float nearPlane;
     private float farPlane;
-    private float xSens = 25f;
-    private float ySens = 25f;
+    private float xSens = 50f;
+    private float ySens = 50f;
     private float pitch = 0.0f;
     private float yaw = 0.0f;
 
