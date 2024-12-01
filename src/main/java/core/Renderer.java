@@ -22,13 +22,21 @@ public class Renderer implements Renderable {
     private final Camera camera;
     private final List<Renderable> renderables;
 
+    private final Chunk chunk;
+
     private Renderer(Display display, Loop loop, Camera camera, List<Renderable> renderables) {
         this.display = display;
         this.loop = loop;
         this.camera = camera;
         this.renderables = renderables;
 
-        World.generateChunks();
+        //World.generateChunks();
+
+        this.chunk = new Chunk(new Vector3i(0));
+        //this.chunk.fillChunk((short) 1);
+        //this.chunk.removeBlock(31,31,31);
+        this.chunk.generateMesh();
+        this.chunk.compileMesh();
 
         loop.addComponent(this);
     }
@@ -42,10 +50,13 @@ public class Renderer implements Renderable {
 
         Display.shader.setUniform("uView",camera.getViewMatrix());
         Display.shader.setUniform("uProjection",camera.getProjectionMatrix());
+        Display.shader.setUniform("uModel", new Matrix4f().identity().translate(0,0,0));
 
         this.renderables.forEach(Renderable::render);
 
-        World.render();
+        this.chunk.render();
+
+        //World.render();
 
         glfwSwapBuffers(this.display.getId());
     }

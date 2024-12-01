@@ -1,77 +1,114 @@
 package game;
 
+import lombok.Getter;
+
+import java.nio.IntBuffer;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+
+import static org.lwjgl.opengl.GL15C.glGenBuffers;
+import static org.lwjgl.opengl.GL30C.*;
+import static org.lwjgl.opengl.GL31C.glDrawArraysInstanced;
+import static org.lwjgl.opengl.GL33C.glVertexAttribDivisor;
 
 public class ChunkMesh {
 
-    private Mesh mesh;
-    private Chunk chunk;
+    private int vaoId;
+    private int vboId;
+    private final Chunk chunk;
+
+    @Getter
+    private List<Integer> encodedData;
+    private int[] data;
 
     public ChunkMesh(Chunk chunk) {
         this.chunk = chunk;
     }
 
     public void generate() {
-        List<Integer> positions = new ArrayList<>();
-        List<Integer> normals = new ArrayList<>();
-        List<Integer> indices = new ArrayList<>();
-
-        int vertexCount = 0;
+        List<Integer> encodedData = new ArrayList<>();
 
         for (int x = 0; x < Chunk.SIZE; x++) {
             for (int y = 0; y < Chunk.SIZE; y++) {
                 for (int z = 0; z < Chunk.SIZE; z++) {
                     short block = chunk.getBlock(x, y, z);
-                    if (block > 0) {
-                        if (shouldRenderFace(x, y, z - 1, FaceDirection.BACK)) {
-                            addFace(positions, normals, indices, x, y, z, FaceDirection.BACK, vertexCount);
-                            vertexCount += 4;
-                        }
-                        if (shouldRenderFace(x, y, z + 1, FaceDirection.FRONT)) {
-                            addFace(positions, normals, indices, x, y, z, FaceDirection.FRONT, vertexCount);
-                            vertexCount += 4;
-                        }
-                        if (shouldRenderFace(x - 1, y, z, FaceDirection.LEFT)) {
-                            addFace(positions, normals, indices, x, y, z, FaceDirection.LEFT, vertexCount);
-                            vertexCount += 4;
-                        }
-                        if (shouldRenderFace(x + 1, y, z, FaceDirection.RIGHT)) {
-                            addFace(positions, normals, indices, x, y, z, FaceDirection.RIGHT, vertexCount);
-                            vertexCount += 4;
-                        }
-                        if (shouldRenderFace(x, y + 1, z, FaceDirection.TOP)) {
-                            addFace(positions, normals, indices, x, y, z, FaceDirection.TOP, vertexCount);
-                            vertexCount += 4;
-                        }
-                        if (shouldRenderFace(x, y - 1, z, FaceDirection.BOTTOM)) {
-                            addFace(positions, normals, indices, x, y, z, FaceDirection.BOTTOM, vertexCount);
-                            vertexCount += 4;
-                        }
 
+                    if (block == 0) continue;
+
+                    for (FaceDirection faceDir : FaceDirection.values()) {
+                        int neighborX = x + faceDir.getOffsetX();
+                        int neighborY = y + faceDir.getOffsetY();
+                        int neighborZ = z + faceDir.getOffsetZ();
+
+                        if (shouldRenderFace(neighborX, neighborY, neighborZ, faceDir)) {
+                            encodedData.add(encodeFaceData(x, y, z, faceDir));
+                        }
                     }
                 }
             }
         }
+        this.encodedData = encodedData;
+       data = encodedData.stream().mapToInt(i -> i).toArray();
+    }
 
-        int[] positionsArray = positions.stream().mapToInt(i -> i).toArray();
-        int[] normalsArray = normals.stream().mapToInt(i -> i).toArray();
-        int[] indicesArray = indices.stream().mapToInt(i -> i).toArray();
+    public void compile() {
+        // Génère un VAO
+        this.vaoId = glGenVertexArrays();
+        glBindVertexArray(this.vaoId);
 
-        this.mesh = new Mesh(positionsArray, normalsArray, indicesArray);
+        // VBO pour les sommets de base (aBaseVertex)
+        int baseVertexVboId = glGenBuffers();
+        glBindBuffer(GL_ARRAY_BUFFER, baseVertexVboId);
+
+        // Exemple de données pour aBaseVertex (6 sommets pour une face carrée)
+        float[] baseVertexData = {
+                1.0f, 0.0f, 0.0f,
+                0.0f, 0.0f, 0.0f,
+                0.0f, 0.0f, 1.0f,
+
+                1.0f, 0.0f, 1.0f,
+                1.0f, 0.0f, 0.0f,
+                0.0f, 0.0f, 1.0f
+        };
+        glBufferData(GL_ARRAY_BUFFER, baseVertexData, GL_STATIC_DRAW);
+
+        // Associe aBaseVertex (location = 0) au VBO
+        glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+        glEnableVertexAttribArray(0);
+
+        // VBO pour les données d'instance (aInstanceData)
+        this.vboId = glGenBuffers();
+        glBindBuffer(GL_ARRAY_BUFFER, this.vboId);
+
+        glBufferData(GL_ARRAY_BUFFER, data, GL_STATIC_DRAW);
+
+        // Associe aInstanceData (location = 1) au VBO
+        glVertexAttribIPointer(1, 1, GL_UNSIGNED_INT, 0, 0);
+        glEnableVertexAttribArray(1);
+
+        // Définir le divisor pour aInstanceData (une donnée par instance)
+        glVertexAttribDivisor(1, 1);
+
+        // Désactive le VAO
+        glBindVertexArray(0);
     }
 
 
-    public void compile(){
-        if(mesh != null){
-            mesh.compile();
-        }
+    public void render() {
+        if (this.data.length == 0) return;
+
+        glBindVertexArray(this.vaoId);
+
+        glDrawArraysInstanced(GL_TRIANGLES, 0, 6, this.data.length);
+
+        glBindVertexArray(0);
     }
 
-    public void render(){
-        if(mesh != null){
-            mesh.render();
-        }
+    public void cleanup() {
+        glDeleteBuffers(this.vboId);
+        glDeleteVertexArrays(this.vaoId);
     }
 
     private boolean shouldRenderFace(int x, int y, int z, FaceDirection faceDir) {
@@ -91,78 +128,19 @@ public class ChunkMesh {
             return neighbor == 0;
         }
 
-        return false;
+        return true;
     }
 
+    private int encodeFaceData(int x, int y, int z, FaceDirection faceDir) {
+        int encoded = 0;
 
-    private void addFace(List<Integer> positions, List<Integer> normals, List<Integer> indices,
-                         int x, int y, int z, FaceDirection faceDir, int vertexStartIndex) {
-        int[][] offsets = getFaceOffsets(faceDir);
-        int normal = faceDir.ordinal();
+        encoded |= (x & 0b11111); // Bits 0-4 pour X
+        encoded |= (y & 0b11111) << 5; // Bits 5-9 pour Y
+        encoded |= (z & 0b11111) << 10; // Bits 10-14 pour Z
 
-        for (int[] offset : offsets) {
-            positions.add(x + offset[0]);
-            positions.add(y + offset[1]);
-            positions.add(z + offset[2]);
+        encoded |= faceDir.ordinal() << 15;
 
-            normals.add(normal);
-        }
-
-        // Ajouter les indices pour deux triangles
-        indices.add(vertexStartIndex);
-        indices.add(vertexStartIndex + 1);
-        indices.add(vertexStartIndex + 2);
-        indices.add(vertexStartIndex + 2);
-        indices.add(vertexStartIndex + 3);
-        indices.add(vertexStartIndex);
-    }
-
-    private int[][] getFaceOffsets(FaceDirection faceDir) {
-        return switch (faceDir) {
-            case FRONT ->  // Face avant
-                    new int[][]{
-                            {0, 1, 1}, // Haut gauche
-                            {0, 0, 1}, // Bas gauche
-                            {1, 0, 1}, // Bas droite
-                            {1, 1, 1}  // Haut droite
-                    };
-            case BACK ->   // Face arrière
-                    new int[][]{
-                            {1, 1, 0}, // Haut gauche
-                            {1, 0, 0}, // Bas gauche
-                            {0, 0, 0}, // Bas droite
-                            {0, 1, 0}  // Haut droite
-                    };
-            case LEFT ->   // Face gauche
-                    new int[][]{
-                            {0, 1, 0}, // Haut gauche
-                            {0, 0, 0}, // Bas gauche
-                            {0, 0, 1}, // Bas droite
-                            {0, 1, 1}  // Haut droite
-                    };
-            case RIGHT ->  // Face droite
-                    new int[][]{
-                            {1, 1, 1}, // Haut gauche
-                            {1, 0, 1}, // Bas gauche
-                            {1, 0, 0}, // Bas droite
-                            {1, 1, 0}  // Haut droite
-                    };
-            case BOTTOM ->    // Face supérieure
-                    new int[][]{
-                            {0, 0, 1}, // Avant gauche
-                            {0, 0, 0}, // Arrière gauche
-                            {1, 0, 0}, // Arrière droite
-                            {1, 0, 1}  // Avant droite
-                    };
-            case TOP -> // Face inférieure
-                    new int[][]{
-                            {0, 1, 0}, // Avant gauche
-                            {0, 1, 1}, // Arrière gauche
-                            {1, 1, 1}, // Arrière droite
-                            {1, 1, 0}  // Avant droite
-                    };
-            default -> throw new IllegalArgumentException("Direction de face inconnue : " + faceDir);
-        };
+        return encoded;
     }
 
 }

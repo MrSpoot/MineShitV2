@@ -19,6 +19,7 @@ public class Chunk {
     private List<Short> palette;
     private int bitsPerBlock;
     private long[] data;
+    @Getter
     private final ChunkMesh chunkMesh;
 
     @Getter

@@ -1,7 +1,8 @@
 //@vs
 #version 430 core
 
-layout(location = 0) in uint aVertexData; // Données compressées
+layout(location = 0) in vec3 aBaseVertex; // Vertices d'une face définie dans le shader
+layout(location = 1) in uint aInstanceData; // Données compressées pour l'instance
 
 uniform mat4 uModel;
 uniform mat4 uView;
@@ -10,34 +11,65 @@ uniform mat4 uProjection;
 out vec3 Normal; // Normale pour le fragment shader
 out vec3 FragPos; // Position pour le fragment shader
 
-// Décompression des données de sommet
-vec3 decodePosition(uint encodedVertex) {
-    float x = float(encodedVertex & 63u);               // Extraire X (6 bits)
-    float y = float((encodedVertex >> 6u) & 63u);      // Extraire Y (6 bits)
-    float z = float((encodedVertex >> 12u) & 63u);     // Extraire Z (6 bits)
+const int FACE_BACK = 0;
+const int FACE_FRONT = 1;
+const int FACE_LEFT = 2;
+const int FACE_RIGHT = 3;
+const int FACE_BOTTOM = 4;
+const int FACE_TOP = 5;
+
+vec3 decodePosition(uint encodedInstance) {
+    // Décoder x, y, z à partir des bits respectifs
+    uint x = encodedInstance & 0x1Fu;           // Bits 0-4
+    uint y = (encodedInstance >> 5u) & 0x1Fu;   // Bits 5-9
+    uint z = (encodedInstance >> 10u) & 0x1Fu;  // Bits 10-14
     return vec3(x, y, z);
 }
 
-vec3 decodeNormal(uint encodedVertex) {
-    uint normal = (encodedVertex >> 18u) & 7u;         // Extraire la normale (3 bits)
-    if (normal == 0u) return vec3(0.0, 0.0, 1.0);      // FRONT
-    if (normal == 1u) return vec3(0.0, 0.0, -1.0);     // BACK
-    if (normal == 2u) return vec3(1.0, 0.0, 0.0);      // RIGHT
-    if (normal == 3u) return vec3(-1.0, 0.0, 0.0);     // LEFT
-    if (normal == 4u) return vec3(0.0, 1.0, 0.0);      // TOP
-    if (normal == 5u) return vec3(0.0, -1.0, 0.0);     // BOTTOM
+int decodeFace(uint encodedInstance) {
+    return int((encodedInstance >> 15u) & 0x7u); // Bits 15-17 (3 bits)
+}
+
+vec3 decodeNormal(uint encodedInstance) {
+    uint normal = decodeFace(encodedInstance);         // Orientation (3 bits)
+    if (normal == 0u) return vec3(0.0, 0.0, 1.0);        // FRONT
+    if (normal == 1u) return vec3(0.0, 0.0, -1.0);       // BACK
+    if (normal == 2u) return vec3(1.0, 0.0, 0.0);        // RIGHT
+    if (normal == 3u) return vec3(-1.0, 0.0, 0.0);       // LEFT
+    if (normal == 4u) return vec3(0.0, 1.0, 0.0);        // TOP
+    if (normal == 5u) return vec3(0.0, -1.0, 0.0);       // BOTTOM
     return vec3(0.0, 0.0, 0.0); // Normale par défaut (ne devrait pas arriver)
 }
 
 void main() {
-    vec3 localPos = decodePosition(aVertexData); // Décode la position locale
-    vec3 normal = decodeNormal(aVertexData);     // Décode la normale
+    vec3 instancePos = decodePosition(aInstanceData); // Position de l'instance
+    vec3 normal = decodeNormal(aInstanceData);        // Normale de l'instance
+
+    vec3 basePos = aBaseVertex;
+
+    if(decodeFace(aInstanceData) == FACE_TOP) {
+        basePos.y++;
+    }else if(decodeFace(aInstanceData) == FACE_BOTTOM){
+        basePos.xz = basePos.zx;
+    }else if(decodeFace(aInstanceData) == FACE_LEFT){
+        basePos.xy = basePos.yx;
+    }else if(decodeFace(aInstanceData) == FACE_RIGHT){
+        basePos.zxy = basePos.xyz;
+        basePos.x++;
+    }else if(decodeFace(aInstanceData) == FACE_BACK){
+        basePos.zy = basePos.yz;
+    }else if(decodeFace(aInstanceData) == FACE_FRONT){
+        basePos.xzy = basePos.zyx;
+        basePos.z++;
+    }
+
+    basePos = basePos + instancePos;
 
     mat3 normalMatrix = transpose(inverse(mat3(uModel)));
-    Normal = normalize(normalMatrix * normal);   // Transformation de la normale dans l'espace monde
+    Normal = normalize(normalMatrix * normal);
 
-    FragPos = localPos; // Position dans l'espace monde
-    gl_Position = uProjection * uView * uModel * vec4(localPos, 1.0); // Position finale
+    FragPos = (uModel * vec4(basePos, 1.0)).xyz;
+    gl_Position = uProjection * uView * vec4(FragPos, 1.0);
 }
 //@endvs
 

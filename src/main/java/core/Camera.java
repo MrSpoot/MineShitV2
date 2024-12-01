@@ -81,7 +81,7 @@ public class Camera implements Updatable  {
 
         position.add(velocity);
 
-        World.update();
+        //World.update();
     }
 
     private float clamp(float value, float min, float max) {
