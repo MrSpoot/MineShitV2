@@ -31,8 +31,7 @@ public class Renderer implements Renderable {
         this.camera = camera;
         this.renderables = renderables;
 
-        World.generateChunks();
-        World.compile();
+        World.initialize();
 
         loop.addComponent(this);
     }

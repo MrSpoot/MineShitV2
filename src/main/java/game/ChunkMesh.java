@@ -119,7 +119,7 @@ public class ChunkMesh {
             return neighbor == 0;
         }
 
-        return false;
+        return true;
     }
 
     private int encodeFaceData(int x, int y, int z, FaceDirection faceDir) {
