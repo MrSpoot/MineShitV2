@@ -8,6 +8,7 @@ import lombok.Setter;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
+import org.joml.Vector3i;
 
 import static org.joml.Math.*;
 import static org.lwjgl.opengl.GL11.*;
@@ -81,7 +82,7 @@ public class Camera implements Updatable  {
 
         position.add(velocity);
 
-        //World.update();
+        World.generateChunksAroundPosition(position,1);
     }
 
     private float clamp(float value, float min, float max) {

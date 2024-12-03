@@ -11,6 +11,7 @@ layout(std430, binding = 0) buffer ChunkPositions {
     vec3 chunkPosition[];
 };
 
+out vec3 Normal;
 out vec3 FragPos; // Position pour le fragment shader
 
 const int FACE_BACK = 0;
@@ -69,6 +70,7 @@ void main() {
     vec3 offset = chunkPosition[drawIndex] * 32;
     basePos = basePos + instancePos;
 
+    Normal = decodeNormal(aInstanceData);;
     FragPos = basePos;
 
     gl_Position = uProjection * uView * vec4(basePos + offset, 1.0);
@@ -78,12 +80,14 @@ void main() {
 //@fs
 #version 460 core
 
+in vec3 Normal;
 in vec3 FragPos;
 
 out vec4 FragColor;
 
 void main() {
-    vec3 color = vec3(FragPos.x / 32.0, FragPos.y / 32.0, FragPos.z / 32.0);
+    vec3 color = abs(Normal);
+    //vec3 color = vec3(FragPos.x / 32.0, FragPos.y / 32.0, FragPos.z / 32.0);
 
     FragColor = vec4(color, 1.0);
 }
