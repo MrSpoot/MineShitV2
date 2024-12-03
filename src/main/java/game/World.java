@@ -28,7 +28,7 @@ public class World {
     private static final Logger LOGGER = LoggerFactory.getLogger(World.class);
 
     private static final Map<Vector3i, Chunk> chunks = new ConcurrentHashMap<>();
-    private static final int chunkRenderDistance = 12;
+    private static final int chunkRenderDistance = 16;
 
     private static int vaoId;
     private static int indirectBufferId;
@@ -44,10 +44,12 @@ public class World {
     };
 
     public static void generateChunks() {
+
+        long startTime = System.nanoTime();
+
         for (int x = -chunkRenderDistance; x <= chunkRenderDistance; x++) {
             for (int z = -chunkRenderDistance; z <= chunkRenderDistance; z++) {
                 for (int y = -chunkRenderDistance; y <= chunkRenderDistance; y++) {
-                    LOGGER.info("Toujours vivant alloa");
                     Vector3i chunkPos = new Vector3i(x, y, z);
                     if (!chunks.containsKey(chunkPos)) {
                         Chunk chunk = new Chunk(chunkPos);
@@ -58,9 +60,13 @@ public class World {
             }
         }
 
+        long endTime = System.nanoTime();
+        long duration = endTime - startTime;
+
+        System.out.println("Generation executed in " + duration / 1_000_000.0 + " ms.");
+
         int i = 0;
         for(Chunk chunk : chunks.values()) {
-            LOGGER.info("Progression -> "+ (i * 100 / chunks.values().size()));
             chunk.generateMesh();
             i++;
         }

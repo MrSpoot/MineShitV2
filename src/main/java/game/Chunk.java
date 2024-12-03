@@ -33,7 +33,7 @@ public class Chunk {
         this.chunkMesh = new ChunkMesh(this);
         this.position = position;
         this.neighbors = new HashMap<>();
-        GenerationEngine.generateChunkData(this,0);
+        GenerationEngine.generateChunkData(this);
         //fillChunk((short) 1);
     }
 
