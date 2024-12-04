@@ -33,7 +33,6 @@ public class Chunk {
         this.chunkMesh = new ChunkMesh(this);
         this.position = position;
         this.neighbors = new HashMap<>();
-        GenerationEngine.generateChunkData(this);
     }
 
     public void addNeighbor(FaceDirection direction, Chunk neighbor) {
@@ -49,6 +48,7 @@ public class Chunk {
     }
 
     public void generateMesh(){
+        GenerationEngine.generateChunkData(this);
         this.chunkMesh.generate();
     }
 

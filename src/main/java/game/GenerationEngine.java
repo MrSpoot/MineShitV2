@@ -7,7 +7,7 @@ public class GenerationEngine {
     private static final long SEED = 154555112;
     private static final float AMPLITUDE = 35.0f;
     private static final int BASE_HEIGHT = 10;
-    private static final int SAMPLE_INTERVAL = 4; // Distance entre les points d'échantillonnage
+    private static final int SAMPLE_INTERVAL = 8; // Distance entre les points d'échantillonnage
 
     private static final FastNoiseLite noise = new FastNoiseLite();
 

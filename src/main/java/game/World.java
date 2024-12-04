@@ -1,8 +1,5 @@
 package game;
 
-import core.Display;
-import core.Renderer;
-import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector3i;
 import org.lwjgl.system.MemoryUtil;
@@ -31,6 +28,9 @@ public class World {
     private static final Map<Vector3i, Chunk> chunks = new ConcurrentHashMap<>();
     private static final List<Chunk> chunkToCompile = new ArrayList<>();
 
+    private static final ExecutorService threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+    private static final List<Chunk> newChunks = Collections.synchronizedList(new ArrayList<>());
+
     private static int vaoId;
     private static int ssboId;
     private static int vboId;
@@ -39,6 +39,8 @@ public class World {
     private static FloatBuffer chunkPositionBuffer;
     private static IntBuffer indirectBuffer;
     private static List<Integer> globalData;
+
+    private static boolean buffersNeedUpdate = false;
 
     private static final float[] baseVertexData = {
             1.0f, 0.0f, 0.0f,
@@ -51,7 +53,6 @@ public class World {
     };
 
     public static void generateChunksAroundPosition(Vector3f cameraPosition, int renderDistance) {
-
         int chunkX = (int) Math.floor(cameraPosition.x / Chunk.SIZE);
         int chunkY = (int) Math.floor(cameraPosition.y / Chunk.SIZE);
         int chunkZ = (int) Math.floor(cameraPosition.z / Chunk.SIZE);
@@ -176,40 +177,42 @@ public class World {
     public static void addChunk(Vector3i position) {
         if (!chunks.containsKey(position)) {
             Chunk newChunk = new Chunk(position);
-            connectChunk(newChunk);
-            updateNeighborsMeshes(newChunk);
-            newChunk.generateMesh();
-            chunks.put(position, newChunk);
-            updateBuffers();
+
+            threadPool.submit(() -> {
+                newChunk.generateMesh();
+                chunks.put(position, newChunk);
+
+                synchronized (newChunks) {
+                    newChunks.add(newChunk);
+                }
+
+                buffersNeedUpdate = true;
+            });
         }
     }
-
-
-    private static void updateNeighborsMeshes(Chunk newChunk) {
-        for (FaceDirection direction : FaceDirection.values()) {
-            Chunk neighbor = newChunk.getNeighbor(direction);
-            if (neighbor != null) {
-                neighbor.generateMesh();
-            }
-        }
-    }
-
 
     public static void removeChunk(Vector3i position) {
         if (chunks.containsKey(position)) {
             Chunk chunk = chunks.remove(position);
-            disconnectChunk(chunk);
-            updateNeighborsMeshes(chunk);
-            updateBuffers();
+
+            threadPool.submit(() -> {
+                for (FaceDirection direction : FaceDirection.values()) {
+                    Chunk neighbor = chunk.getNeighbor(direction);
+                    if (neighbor != null) {
+                        neighbor.generateMesh();
+                    }
+                }
+                disconnectChunk(chunk);
+                buffersNeedUpdate = true;
+            });
         }
     }
-
 
     private static void connectChunk(Chunk newChunk) {
         Vector3i position = newChunk.getPosition();
 
         for (FaceDirection direction : FaceDirection.values()) {
-            Vector3i neighborPos = position.add(direction.getOffset());
+            Vector3i neighborPos = new Vector3i(position).add(direction.getOffset());
             Chunk neighbor = chunks.get(neighborPos);
             if (neighbor != null) {
                 newChunk.addNeighbor(direction, neighbor);
@@ -228,10 +231,60 @@ public class World {
         }
     }
 
+    private static void processNewChunks() {
+        synchronized (newChunks) {
+            List<Chunk> chunksToProcess = new ArrayList<>(newChunks);
+            newChunks.clear();
+            for (Chunk chunk : chunksToProcess) {
+                Vector3i position = chunk.getPosition();
+                for (FaceDirection direction : FaceDirection.values()) {
+                    Vector3i neighborPos = new Vector3i(position).add(direction.getOffset());
+                    Chunk neighbor = chunks.get(neighborPos);
+
+                    if (neighbor != null) {
+                        chunk.addNeighbor(direction, neighbor);
+                        neighbor.addNeighbor(direction.getOpposite(), chunk);
+                        neighbor.generateMesh();
+                    } else {
+                        Chunk existingNeighbor = chunk.getNeighbor(direction);
+                        if (existingNeighbor != null) {
+                            chunk.removeNeighbor(direction);
+                            existingNeighbor.removeNeighbor(direction.getOpposite());
+                            existingNeighbor.generateMesh();
+                        }
+                    }
+                }
+                chunk.generateMesh();
+            }
+            if (!chunksToProcess.isEmpty()) {
+                buffersNeedUpdate = true;
+            }
+        }
+    }
+
+    public static void checkAnRunBuffersUpdate() {
+        if(buffersNeedUpdate){
+            buffersNeedUpdate = false;
+            updateBuffers();
+        }
+    }
+
     public static void render() {
+        checkAnRunBuffersUpdate();
         glBindVertexArray(vaoId);
         glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirectBufferId);
         glMultiDrawArraysIndirect(GL_TRIANGLES, 0, chunkToCompile.size(), 16);
+    }
+
+    public static void shutdown() {
+        threadPool.shutdown();
+        try {
+            if (!threadPool.awaitTermination(60, TimeUnit.SECONDS)) {
+                threadPool.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            threadPool.shutdownNow();
+        }
     }
 
     private static int[] toIntArray(List<Integer> list) {
