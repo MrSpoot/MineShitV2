@@ -11,13 +11,10 @@ import static org.lwjgl.opengl.GL33C.glVertexAttribDivisor;
 
 public class ChunkMesh {
 
-    private int vaoId;
-    private int vboId;
     private final Chunk chunk;
 
     @Getter
     private List<Integer> encodedData;
-    private int[] data;
 
     public ChunkMesh(Chunk chunk) {
         this.chunk = chunk;
@@ -46,60 +43,6 @@ public class ChunkMesh {
             }
         }
         this.encodedData = encodedData;
-       data = encodedData.stream().mapToInt(i -> i).toArray();
-    }
-
-    public void compile() {
-        this.vaoId = glGenVertexArrays();
-        glBindVertexArray(this.vaoId);
-
-        int baseVertexVboId = glGenBuffers();
-        glBindBuffer(GL_ARRAY_BUFFER, baseVertexVboId);
-
-        float[] baseVertexData = {
-                1.0f, 0.0f, 0.0f,
-                0.0f, 0.0f, 0.0f,
-                0.0f, 0.0f, 1.0f,
-
-                1.0f, 0.0f, 1.0f,
-                1.0f, 0.0f, 0.0f,
-                0.0f, 0.0f, 1.0f
-        };
-        glBufferData(GL_ARRAY_BUFFER, baseVertexData, GL_STATIC_DRAW);
-
-        glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
-        glEnableVertexAttribArray(0);
-
-        this.vboId = glGenBuffers();
-        glBindBuffer(GL_ARRAY_BUFFER, this.vboId);
-
-        glBufferData(GL_ARRAY_BUFFER, data, GL_STATIC_DRAW);
-
-        // Associe aInstanceData (location = 1) au VBO
-        glVertexAttribIPointer(1, 1, GL_UNSIGNED_INT, 0, 0);
-        glEnableVertexAttribArray(1);
-
-        // Définir le divisor pour aInstanceData (une donnée par instance)
-        glVertexAttribDivisor(1, 1);
-
-        // Désactive le VAO
-        glBindVertexArray(0);
-    }
-
-
-    public void render() {
-        if (this.data.length == 0) return;
-
-        glBindVertexArray(this.vaoId);
-
-        glDrawArraysInstanced(GL_TRIANGLES, 0, 6, this.data.length);
-
-        glBindVertexArray(0);
-    }
-
-    public void cleanup() {
-        glDeleteBuffers(this.vboId);
-        glDeleteVertexArrays(this.vaoId);
     }
 
     private boolean shouldRenderFace(int x, int y, int z, FaceDirection faceDir) {

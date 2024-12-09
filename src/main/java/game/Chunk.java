@@ -52,14 +52,6 @@ public class Chunk {
         this.chunkMesh.generate();
     }
 
-    public void compileMesh(){
-        chunkMesh.compile();
-    }
-
-    public void render(){
-        chunkMesh.render();
-    }
-
     public void fillChunk(short blockId) {
         if (isUniform && uniformBlockId == blockId) {
             return;

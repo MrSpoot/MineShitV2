@@ -1,19 +1,11 @@
 package core;
 
 import core.interfaces.Renderable;
-import core.manager.Input;
-import game.Chunk;
-import game.FaceDirection;
 import game.World;
 import org.joml.Matrix4f;
-import org.joml.Vector3i;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import static org.lwjgl.glfw.GLFW.glfwSwapBuffers;
 import static org.lwjgl.opengl.GL11.*;
