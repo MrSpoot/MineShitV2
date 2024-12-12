@@ -46,7 +46,7 @@ public class FileReader {
     public static Image readImage(String path, boolean flip) {
         stbi_set_flip_vertically_on_load(flip);
 
-        try (InputStream inputStream = FileReader.class.getClassLoader().getResourceAsStream(path)) {
+        try (InputStream inputStream = FileReader.class.getResourceAsStream(path)) {
             if (inputStream == null) {
                 LOGGER.warn("Image not found: " + path);
                 return null;

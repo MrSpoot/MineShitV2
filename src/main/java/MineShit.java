@@ -27,6 +27,8 @@ public class MineShit {
 
         Renderer renderer = Renderer.builder().display(window).loop(loop).camera(camera).build();
 
+
+
         loop.run();
     }
 

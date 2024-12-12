@@ -1,5 +1,7 @@
 package game;
 
+import core.Display;
+import game.utils.TextureArray;
 import org.joml.Vector3f;
 import org.joml.Vector3i;
 import org.lwjgl.system.MemoryUtil;
@@ -25,8 +27,10 @@ public class World {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(World.class);
 
+    private static TextureArray textureArray;
     private static final Map<Vector3i, Chunk> chunks = new ConcurrentHashMap<>();
     private static final List<Chunk> chunkToCompile = new ArrayList<>();
+    private static final ExecutorService executorService = Executors.newFixedThreadPool(4);
 
     private static int vaoId;
     private static int ssboId;
@@ -36,6 +40,10 @@ public class World {
     private static FloatBuffer chunkPositionBuffer;
     private static IntBuffer indirectBuffer;
     private static List<Integer> globalData;
+
+    private static boolean buffersNeedUpdate = true;
+
+    private static Vector3i lastPosition = new Vector3i(Integer.MAX_VALUE);
 
     private static final float[] baseVertexData = {
             1.0f, 0.0f, 0.0f,
@@ -83,13 +91,51 @@ public class World {
         glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirectBufferId);
         glBufferData(GL_DRAW_INDIRECT_BUFFER, 0, GL_DYNAMIC_DRAW);
 
-        glBindVertexArray(0);
+        textureArray = new TextureArray();
 
-        chunks.put(new Vector3i(0),new Chunk(new Vector3i(0)));
-        chunks.put(new Vector3i(1,0,0),new Chunk(new Vector3i(1,0,0)));
-        chunks.put(new Vector3i(0,0,1),new Chunk(new Vector3i(0,0,1)));
-        chunks.put(new Vector3i(1,0,1),new Chunk(new Vector3i(1,0,1)));
-        updateBuffers();
+        glBindVertexArray(0);
+    }
+
+    public static void generateChunksAroundPosition(Vector3f cameraPosition, int renderDistance) {
+        int chunkX = (int) Math.floor(cameraPosition.x / Chunk.SIZE);
+        int chunkY = (int) Math.floor(cameraPosition.y / Chunk.SIZE);
+        int chunkZ = (int) Math.floor(cameraPosition.z / Chunk.SIZE);
+
+        Vector3i center = new Vector3i(chunkX, chunkY, chunkZ);
+
+        if (lastPosition.equals(center)) {
+            return;
+        }
+        lastPosition = center;
+
+        Set<Vector3i> newChunks = new HashSet<>();
+        Set<Vector3i> existingChunks = new HashSet<>(chunks.keySet());
+
+        for (int y = -renderDistance; y <= renderDistance; y++) {
+            for (int x = -renderDistance; x <= renderDistance; x++) {
+                for (int z = -renderDistance; z <= renderDistance; z++) {
+                    Vector3i chunkPos = new Vector3i(center.x + x, center.y + y, center.z + z);
+                    if (!chunks.containsKey(chunkPos)) {
+                        newChunks.add(chunkPos);
+                    }
+                    existingChunks.remove(chunkPos);
+                }
+            }
+        }
+
+        for (Vector3i chunkPos : existingChunks) {
+            executorService.execute(() -> {
+                chunks.remove(chunkPos);
+                buffersNeedUpdate = true;
+            });
+        }
+
+        for (Vector3i chunkPos : newChunks) {
+            executorService.execute(() -> {
+                chunks.put(chunkPos, new Chunk(chunkPos));
+                buffersNeedUpdate = true;
+            });
+        }
     }
 
     public static void updateBuffers() {
@@ -97,7 +143,7 @@ public class World {
         globalData = new ArrayList<>();
 
         for (Chunk chunk : chunks.values()) {
-            List<Integer> chunkData = chunk.getChunkMesh().getEncodedData();
+            List<Integer> chunkData = chunk.getEncodedData();
             if (chunkData != null && !chunkData.isEmpty()) {
                 chunkToCompile.add(chunk);
                 globalData.addAll(chunkData);
@@ -115,7 +161,7 @@ public class World {
             chunkPositionBuffer.put(chunk.getPosition().z);
             chunkPositionBuffer.put(0.0f);
 
-            List<Integer> chunkData = chunk.getChunkMesh().getEncodedData();
+            List<Integer> chunkData = chunk.getEncodedData();
             indirectBuffer.put(6); // Primitive count
             indirectBuffer.put(chunkData.size()); // Instance count
             indirectBuffer.put(0); // First index
@@ -145,9 +191,15 @@ public class World {
     }
 
     public static void render() {
+        textureArray.bind();
+        if (buffersNeedUpdate) {
+            updateBuffers();
+            buffersNeedUpdate = false;
+        }
         glBindVertexArray(vaoId);
         glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirectBufferId);
         glMultiDrawArraysIndirect(GL_TRIANGLES, 0, chunkToCompile.size(), 16);
+        textureArray.unbind();
     }
 
     private static int[] toIntArray(List<Integer> list) {
@@ -157,4 +209,9 @@ public class World {
         }
         return array;
     }
+
+    public static void shutdown() {
+        executorService.shutdown();
+    }
+
 }

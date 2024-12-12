@@ -1,4 +1,4 @@
-package game;
+package game.utils;
 
 import lombok.Getter;
 import org.joml.Vector3i;

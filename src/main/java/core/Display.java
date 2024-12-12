@@ -1,6 +1,7 @@
 package core;
 
 import core.interfaces.Renderable;
+import game.utils.TextureArray;
 import lombok.Getter;
 import org.lwjgl.glfw.GLFWVidMode;
 import org.lwjgl.opengl.GL;
@@ -30,7 +31,7 @@ public class Display implements Renderable {
         this.width = width;
         this.height = height;
         this.loop = loop;
-        this.shader = shader;
+        Display.shader = shader;
 
         loop.addComponent(this);
     }

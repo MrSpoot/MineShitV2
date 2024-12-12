@@ -11,8 +11,9 @@ layout(std430, binding = 0) buffer ChunkPositions {
     vec3 chunkPosition[];
 };
 
+out int TextureLayer;
 out vec3 Normal;
-out vec3 FragPos; // Position pour le fragment shader
+out vec3 FragPos;
 
 const int FACE_BACK = 0;
 const int FACE_FRONT = 1;
@@ -26,6 +27,10 @@ vec3 decodePosition(uint encodedInstance) {
     uint y = (encodedInstance >> 5u) & 0x1Fu;   // Bits 5-9
     uint z = (encodedInstance >> 10u) & 0x1Fu;  // Bits 10-14
     return vec3(x, y, z);
+}
+
+int decodeBlock(uint encodedInstance) {
+    return int((encodedInstance >> 18u) & 0xFFu); // Bits 18-25 (8 bits)
 }
 
 int decodeFace(uint encodedInstance) {
@@ -67,11 +72,14 @@ void main() {
         basePos.z++;
     }
 
+    FragPos = basePos;
+
     vec3 offset = chunkPosition[drawIndex] * 32;
     basePos = basePos + instancePos;
 
-    Normal = decodeNormal(aInstanceData);;
-    FragPos = basePos;
+    TextureLayer = decodeBlock(aInstanceData);
+    Normal = decodeNormal(aInstanceData);
+
 
     gl_Position = uProjection * uView * vec4(basePos + offset, 1.0);
 }
@@ -80,15 +88,37 @@ void main() {
 //@fs
 #version 460 core
 
+uniform sampler2DArray textureArray;
+
+flat in int TextureLayer;
 in vec3 Normal;
 in vec3 FragPos;
 
 out vec4 FragColor;
 
 void main() {
-    //vec3 color = abs(Normal);
-    vec3 color = vec3(FragPos.x / 32.0, FragPos.y / 32.0, FragPos.z / 32.0);
+    vec3 color = abs(Normal);
+    //vec3 color = vec3(FragPos.x, FragPos.y, FragPos.z);
 
     FragColor = vec4(color, 1.0);
+
+    vec2 textureCoord = vec2(0.0);
+    if(Normal.x != 0.0){
+        textureCoord = FragPos.yz;
+    }else if(Normal.y != 0.0){
+        textureCoord = FragPos.xz;
+    }else if(Normal.z != 0.0){
+        textureCoord = FragPos.xy;
+    }
+
+    if(TextureLayer == 3){
+        FragColor = vec4(color, 1.0);
+    }else{
+        FragColor = texture(textureArray,vec3(textureCoord,TextureLayer));
+    }
+
+    FragColor = texture(textureArray,vec3(textureCoord,TextureLayer));
+
+
 }
 //@endfs

@@ -43,8 +43,8 @@ public class Camera implements Updatable  {
     @Override
     public void update() {
 
-        float mouseX = Input.getXAxisRaw() * Time.delta("update") * xSens;
-        float mouseY = Input.getYAxisRaw() * Time.delta("update") * ySens;
+        float mouseX = Input.getXAxisRaw() * Time.delta("render") * xSens;
+        float mouseY = Input.getYAxisRaw() * Time.delta("render") * ySens;
 
         rotate(-mouseY, -mouseX);
 
@@ -52,7 +52,7 @@ public class Camera implements Updatable  {
         Vector3f forward = new Vector3f(0, 0, -1).rotate(rotation);
         Vector3f right = new Vector3f(forward).cross(new Vector3f(0, 1, 0)).normalize();
 
-        float cameraSpeed = 5f * Time.delta("update");
+        float cameraSpeed = 5f * Time.delta("render");
 
         if(Input.isPressed("sprint")){
             cameraSpeed *= 5f;
@@ -82,7 +82,7 @@ public class Camera implements Updatable  {
 
         position.add(velocity);
 
-        //World.generateChunksAroundPosition(position,2);
+        World.generateChunksAroundPosition(position,4);
     }
 
     private float clamp(float value, float min, float max) {

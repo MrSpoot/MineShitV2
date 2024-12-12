@@ -1,21 +1,26 @@
 package game;
 
+import game.utils.FaceDirection;
+import game.utils.GenerationEngine;
 import lombok.Getter;
-import org.joml.Vector3f;
+import lombok.Setter;
 import org.joml.Vector3i;
-
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class Chunk {
     public static final int SIZE = 32;
-    private static final int TOTAL_BLOCKS = SIZE * SIZE * SIZE;
+    public static final int BORDER = 1;
+    private static final int TOTAL_BLOCKS = (SIZE + 2 * BORDER) * (SIZE + 2 * BORDER) * (SIZE + 2 * BORDER);
 
+    @Getter
     private boolean isUniform;
+    @Getter @Setter
+    private int bufferOffset;
+    @Getter @Setter
+    private int bufferSize;
+    @Getter
     private short uniformBlockId;
-
     private List<Short> palette;
     private int bitsPerBlock;
     private long[] data;
@@ -23,65 +28,68 @@ public class Chunk {
     @Getter
     private final Vector3i position;
     @Getter
-    private final Map<FaceDirection, Chunk> neighbors;
-
-    @Getter
     private List<Integer> encodedData;
 
     public Chunk(Vector3i position) {
+        this.position = position;
+        this.bufferOffset = -1;
         this.isUniform = true;
         this.uniformBlockId = 0;
-        this.position = position;
-        this.neighbors = new HashMap<>();
+        initializePaletteAndData();
+        generateData();
+        generateMesh();
+    }
+
+    private void generateData() {
         GenerationEngine.generateChunkData(this);
-        generate();
     }
 
-    public void addNeighbor(FaceDirection direction, Chunk neighbor) {
-        this.neighbors.put(direction, neighbor);
-    }
+    private void generateMesh() {
+        encodedData = new ArrayList<>();
+        for (int x = 0; x < SIZE; x++) {
+            for (int y = 0; y < SIZE; y++) {
+                for (int z = 0; z < SIZE; z++) {
+                    short block = getBlock(x, y, z);
+                    if (block == 0) continue;
 
-    public void removeNeighbor(FaceDirection direction) {
-        this.neighbors.remove(direction);
-    }
+                    for (FaceDirection face : FaceDirection.values()) {
+                        int neighborX = x + face.getOffsetX();
+                        int neighborY = y + face.getOffsetY();
+                        int neighborZ = z + face.getOffsetZ();
 
-    public Chunk getNeighbor(FaceDirection direction) {
-        return this.neighbors.get(direction);
-    }
-
-    public void fillChunk(short blockId) {
-        if (isUniform && uniformBlockId == blockId) {
-            return;
+                        boolean isFaceVisible = isFaceExposed(neighborX, neighborY, neighborZ);
+                        if (isFaceVisible) {
+                            encodedData.add(encodeFaceData(x, y, z, (byte) block, face));
+                        }
+                    }
+                }
+            }
         }
+    }
 
+    private boolean isFaceExposed(int x, int y, int z) {
+        if (x >= -BORDER && x < SIZE + BORDER && y >= -BORDER && y < SIZE + BORDER && z >= -BORDER && z < SIZE + BORDER) {
+            return getBlock(x, y, z) == 0;
+        }
+        return true;
+    }
+
+    public short getBlock(int x, int y, int z) {
+        int blockIndex = getBlockIndex(x + BORDER, y + BORDER, z + BORDER);
         if (isUniform) {
-            uniformBlockId = blockId;
-        } else {
-            isUniform = true;
-            uniformBlockId = blockId;
-            palette = null;
-            data = null;
+            return uniformBlockId;
         }
+        int paletteIndex = readBlockData(blockIndex, data, bitsPerBlock);
+        return palette.get(paletteIndex);
     }
 
     public void setBlock(int x, int y, int z, short blockId) {
         if (isUniform) {
-            if (blockId == uniformBlockId) {
-                return;
-            } else {
-                isUniform = false;
-                initializePaletteAndData();
+            if (blockId == uniformBlockId) return;
 
-                int previousPaletteIndex = palette.indexOf(uniformBlockId);
-                if (previousPaletteIndex == -1) {
-                    palette.add(uniformBlockId);
-                    previousPaletteIndex = palette.size() - 1;
-                }
-
-                for (int i = 0; i < TOTAL_BLOCKS; i++) {
-                    writeBlockData(i, previousPaletteIndex, data, bitsPerBlock);
-                }
-            }
+            isUniform = false;
+            initializePaletteAndData();
+            fillUniformBlock();
         }
 
         int paletteIndex = palette.indexOf(blockId);
@@ -91,53 +99,26 @@ public class Chunk {
             ensureCapacity();
         }
 
-        int blockIndex = getBlockIndex(x, y, z);
+        int blockIndex = getBlockIndex(x + BORDER, y + BORDER, z + BORDER);
         writeBlockData(blockIndex, paletteIndex, data, bitsPerBlock);
     }
 
-    public short getBlock(int x, int y, int z) {
-        if (isUniform) {
-            return uniformBlockId;
+    public void fillChunk(short blockId) {
+        if (isUniform && uniformBlockId == blockId) {
+            return;
         }
-        int blockIndex = getBlockIndex(x, y, z);
-        int paletteIndex = readBlockData(blockIndex, data, bitsPerBlock);
-        return palette.get(paletteIndex);
+        isUniform = true;
+        uniformBlockId = blockId;
+        palette = null;
+        data = null;
     }
 
-    public void removeBlock(int x, int y, int z) {
-        setBlock(x, y, z, (short) 0);
 
-        if (!isUniform) {
-            short firstBlockId = -1;
-            boolean uniform = true;
-
-            for (int i = 0; i < TOTAL_BLOCKS; i++) {
-                int paletteIndex = readBlockData(i, data, bitsPerBlock);
-                short blockId = palette.get(paletteIndex);
-
-                if (firstBlockId == -1) {
-                    firstBlockId = blockId;
-                } else if (blockId != firstBlockId) {
-                    uniform = false;
-                    break;
-                }
-            }
-
-            if (uniform) {
-                isUniform = true;
-                uniformBlockId = firstBlockId;
-                palette = null;
-                data = null;
-            }
+    private void fillUniformBlock() {
+        int uniformPaletteIndex = palette.indexOf(uniformBlockId);
+        for (int i = 0; i < TOTAL_BLOCKS; i++) {
+            writeBlockData(i, uniformPaletteIndex, data, bitsPerBlock);
         }
-    }
-
-    public boolean isUniform() {
-        return isUniform;
-    }
-
-    public short getUniformBlockId() {
-        return uniformBlockId;
     }
 
     private void initializePaletteAndData() {
@@ -151,15 +132,13 @@ public class Chunk {
             palette.add((short) 0);
         }
 
-        if (uniformBlockId != 0 && !palette.contains(uniformBlockId)) {
+        if (!palette.contains(uniformBlockId)) {
             palette.add(uniformBlockId);
         }
     }
 
     private void ensureCapacity() {
-        int paletteSize = palette.size();
-        int requiredBits = Math.max(4, 32 - Integer.numberOfLeadingZeros(paletteSize - 1));
-
+        int requiredBits = Math.max(4, 32 - Integer.numberOfLeadingZeros(palette.size() - 1));
         if (requiredBits != bitsPerBlock) {
             bitsPerBlock = requiredBits;
             reallocateData();
@@ -180,7 +159,7 @@ public class Chunk {
     }
 
     private int getBlockIndex(int x, int y, int z) {
-        return x + (z * SIZE) + (y * SIZE * SIZE);
+        return x + (z * (SIZE + 2 * BORDER)) + (y * (SIZE + 2 * BORDER) * (SIZE + 2 * BORDER));
     }
 
     private void writeBlockData(int blockIndex, int paletteIndex, long[] dataArray, int bitsPerBlock) {
@@ -191,11 +170,10 @@ public class Chunk {
         long mask = ((1L << bitsPerBlock) - 1L) << bitOffset;
         dataArray[arrayIndex] = (dataArray[arrayIndex] & ~mask) | ((long) paletteIndex << bitOffset);
 
-        int bitsInCurrentLong = 64 - bitOffset;
-        if (bitsInCurrentLong < bitsPerBlock) {
-            int bitsInNextLong = bitsPerBlock - bitsInCurrentLong;
-            mask = (1L << bitsInNextLong) - 1L;
-            dataArray[arrayIndex + 1] = (dataArray[arrayIndex + 1] & ~mask) | ((long) paletteIndex >> bitsInCurrentLong);
+        if (64 - bitOffset < bitsPerBlock) {
+            int remainingBits = bitsPerBlock - (64 - bitOffset);
+            mask = (1L << remainingBits) - 1;
+            dataArray[arrayIndex + 1] = (dataArray[arrayIndex + 1] & ~mask) | ((long) paletteIndex >> (bitsPerBlock - remainingBits));
         }
     }
 
@@ -204,86 +182,24 @@ public class Chunk {
         int arrayIndex = bitIndex / 64;
         int bitOffset = bitIndex % 64;
 
-        long value = (dataArray[arrayIndex] >>> bitOffset) & ((1L << bitsPerBlock) - 1L);
+        long value = (dataArray[arrayIndex] >>> bitOffset) & ((1L << bitsPerBlock) - 1);
 
-        int bitsInCurrentLong = 64 - bitOffset;
-        if (bitsInCurrentLong < bitsPerBlock) {
-            int bitsInNextLong = bitsPerBlock - bitsInCurrentLong;
-            long nextValue = dataArray[arrayIndex + 1] & ((1L << bitsInNextLong) - 1L);
-            value |= nextValue << bitsInCurrentLong;
+        if (64 - bitOffset < bitsPerBlock) {
+            int remainingBits = bitsPerBlock - (64 - bitOffset);
+            value |= (dataArray[arrayIndex + 1] & ((1L << remainingBits) - 1)) << (bitsPerBlock - remainingBits);
         }
 
         return (int) value;
     }
 
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Chunk Info:").append("\n");
-        sb.append("Uniform: ").append(isUniform).append("\n");
-
-        if (isUniform) {
-            sb.append("Uniform Block ID: ").append(uniformBlockId).append("\n");
-        } else {
-            sb.append("Palette Size: ").append(palette.size()).append("\n");
-            sb.append("Bits Per Block: ").append(bitsPerBlock).append("\n");
-        }
-        return sb.toString();
-    }
-
-    public void generate() {
-        List<Integer> encodedData = new ArrayList<>();
-
-        for (int x = 0; x < Chunk.SIZE; x++) {
-            for (int y = 0; y < Chunk.SIZE; y++) {
-                for (int z = 0; z < Chunk.SIZE; z++) {
-                    short block = getBlock(x, y, z);
-
-                    if (block == 0) continue;
-
-                    for (FaceDirection faceDir : FaceDirection.values()) {
-                        int neighborX = x + faceDir.getOffsetX();
-                        int neighborY = y + faceDir.getOffsetY();
-                        int neighborZ = z + faceDir.getOffsetZ();
-
-                        if (shouldRenderFace(neighborX, neighborY, neighborZ, faceDir)) {
-                            encodedData.add(encodeFaceData(x, y, z, faceDir));
-                        }
-                    }
-                }
-            }
-        }
-        this.encodedData = encodedData;
-    }
-
-    private boolean shouldRenderFace(int x, int y, int z, FaceDirection faceDir) {
-        if (x >= 0 && x < Chunk.SIZE && y >= 0 && y < Chunk.SIZE && z >= 0 && z < Chunk.SIZE) {
-            short neighbor = getBlock(x, y, z);
-            return neighbor == 0;
-        }
-
-        Chunk neighborChunk = getNeighbor(faceDir);
-
-        if (neighborChunk != null) {
-            int neighborX = (x + Chunk.SIZE) % Chunk.SIZE;
-            int neighborY = (y + Chunk.SIZE) % Chunk.SIZE;
-            int neighborZ = (z + Chunk.SIZE) % Chunk.SIZE;
-
-            short neighbor = neighborChunk.getBlock(neighborX, neighborY, neighborZ);
-            return neighbor == 0;
-        }
-
-        return true;
-    }
-
-    private int encodeFaceData(int x, int y, int z, FaceDirection faceDir) {
+    private int encodeFaceData(int x, int y, int z, byte typeId, FaceDirection faceDir) {
         int encoded = 0;
-
-        encoded |= (x & 0b11111); // Bits 0-4 pour X
-        encoded |= (y & 0b11111) << 5; // Bits 5-9 pour Y
-        encoded |= (z & 0b11111) << 10; // Bits 10-14 pour Z
-
+        encoded |= (x & 0x1F);
+        encoded |= (y & 0x1F) << 5;
+        encoded |= (z & 0x1F) << 10;
         encoded |= faceDir.ordinal() << 15;
-
+        encoded |= (typeId & 0xFF) << 18;
         return encoded;
     }
+
 }
