@@ -86,8 +86,8 @@ in vec3 FragPos;
 out vec4 FragColor;
 
 void main() {
-    vec3 color = abs(Normal);
-    //vec3 color = vec3(FragPos.x / 32.0, FragPos.y / 32.0, FragPos.z / 32.0);
+    //vec3 color = abs(Normal);
+    vec3 color = vec3(FragPos.x / 32.0, FragPos.y / 32.0, FragPos.z / 32.0);
 
     FragColor = vec4(color, 1.0);
 }

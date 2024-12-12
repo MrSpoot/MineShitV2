@@ -77,7 +77,6 @@ public class Loop {
             }
 
         }
-        World.shutdown();
         glfwTerminate();
     }
 
