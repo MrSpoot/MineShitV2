@@ -14,6 +14,7 @@ layout(std430, binding = 0) buffer ChunkPositions {
 out int TextureLayer;
 out vec3 Normal;
 out vec3 FragPos;
+out int FaceIndex;
 
 const int FACE_BACK = 0;
 const int FACE_FRONT = 1;
@@ -57,17 +58,23 @@ void main() {
     vec3 basePos = aBaseVertex;
 
     if(decodeFace(aInstanceData) == FACE_TOP) {
+        FaceIndex = FACE_TOP;
         basePos.y++;
     }else if(decodeFace(aInstanceData) == FACE_BOTTOM){
+        FaceIndex = FACE_BOTTOM;
         basePos.xz = basePos.zx;
     }else if(decodeFace(aInstanceData) == FACE_LEFT){
+        FaceIndex = FACE_LEFT;
         basePos.xy = basePos.yx;
     }else if(decodeFace(aInstanceData) == FACE_RIGHT){
+        FaceIndex = FACE_RIGHT;
         basePos.zxy = basePos.xyz;
         basePos.x++;
     }else if(decodeFace(aInstanceData) == FACE_BACK){
+        FaceIndex = FACE_BACK;
         basePos.zy = basePos.yz;
     }else if(decodeFace(aInstanceData) == FACE_FRONT){
+        FaceIndex = FACE_FRONT;
         basePos.xzy = basePos.zyx;
         basePos.z++;
     }
@@ -80,7 +87,6 @@ void main() {
     TextureLayer = decodeBlock(aInstanceData);
     Normal = decodeNormal(aInstanceData);
 
-
     gl_Position = uProjection * uView * vec4(basePos + offset, 1.0);
 }
 //@endvs
@@ -91,10 +97,18 @@ void main() {
 uniform sampler2DArray textureArray;
 
 flat in int TextureLayer;
+flat in int FaceIndex;
 in vec3 Normal;
 in vec3 FragPos;
 
 out vec4 FragColor;
+
+const int FACE_BACK = 0;
+const int FACE_FRONT = 1;
+const int FACE_LEFT = 2;
+const int FACE_RIGHT = 3;
+const int FACE_BOTTOM = 4;
+const int FACE_TOP = 5;
 
 void main() {
     vec3 color = abs(Normal);
@@ -102,23 +116,36 @@ void main() {
 
     FragColor = vec4(color, 1.0);
 
-    vec2 textureCoord = vec2(0.0);
-    if(Normal.x != 0.0){
-        textureCoord = FragPos.yz;
-    }else if(Normal.y != 0.0){
-        textureCoord = FragPos.xz;
-    }else if(Normal.z != 0.0){
-        textureCoord = FragPos.xy;
-    }
+    float faceWidth = 1.0 / 6.0;
+    vec2 textureCoord = vec2(0);
 
-    if(TextureLayer == 3){
-        FragColor = vec4(color, 1.0);
-    }else{
-        FragColor = texture(textureArray,vec3(textureCoord,TextureLayer));
+    if(FaceIndex == FACE_LEFT){
+        int faceIndex = 1;
+        textureCoord = vec2(FragPos.z * faceWidth + faceWidth * faceIndex, FragPos.y);
+    }else if(FaceIndex == FACE_RIGHT){
+        int faceIndex = 2;
+        textureCoord = vec2(FragPos.z * faceWidth,FragPos.y);
+        textureCoord.x += faceWidth * faceIndex;
+    }else if(FaceIndex == FACE_TOP){
+        int faceIndex = 0;
+        textureCoord = vec2(FragPos.x * faceWidth,FragPos.z);
+        textureCoord.x += faceWidth * faceIndex;
+    }else if(FaceIndex == FACE_BOTTOM){
+        int faceIndex = 5;
+        textureCoord = vec2(FragPos.x * faceWidth,FragPos.z);
+        textureCoord.x += faceWidth * faceIndex;
+    }else if(FaceIndex == FACE_FRONT){
+        int faceIndex = 3;
+        textureCoord = vec2(FragPos.x * faceWidth,FragPos.y);
+        textureCoord.x += faceWidth * faceIndex;
+    }else if(FaceIndex == FACE_BACK){
+        int faceIndex = 4;
+        textureCoord = vec2(FragPos.x * faceWidth,FragPos.y);
+        textureCoord.x += faceWidth * faceIndex;
     }
 
     FragColor = texture(textureArray,vec3(textureCoord,TextureLayer));
-
+    //FragColor = vec4(textureCoord,0,1);
 
 }
 //@endfs

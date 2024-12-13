@@ -37,6 +37,9 @@ public class Chunk {
         this.uniformBlockId = 0;
         initializePaletteAndData();
         generateData();
+
+        setBlock(15,15,15,(short)4);
+
         generateMesh();
     }
 

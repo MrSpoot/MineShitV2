@@ -6,7 +6,7 @@ import org.joml.Vector3i;
 public class GenerationEngine {
 
     private static final long SEED = 154555112;
-    private static final float AMPLITUDE = 50.0f;
+    private static final float AMPLITUDE = 35.0f;
     private static final int BASE_HEIGHT = 10;
     private static final int SAMPLE_INTERVAL = 8;
     private static final float THRESHOLD = 0.1f;

@@ -26,12 +26,12 @@ public class TextureArray {
         glBindTexture(GL_TEXTURE_2D_ARRAY, id);
 
         int layerCount = Arrays.stream(BlockType.values()).filter(b -> b.getTexturePath() != null).toList().size();
-        glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA8, 16, 16, layerCount, 0, GL_RGBA, GL_UNSIGNED_BYTE, (ByteBuffer) null);
+        glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA8, 96, 16, layerCount, 0, GL_RGBA, GL_UNSIGNED_BYTE, (ByteBuffer) null);
         int i = 0;
         for(BlockType b : Arrays.stream(BlockType.values()).filter(b -> b.getTexturePath() != null).toList()){
             Image texture = FileReader.readImage(b.getTexturePath(), true);
             assert texture != null;
-            glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, i, 16, 16, 1, GL_RGBA, GL_UNSIGNED_BYTE, texture.getByteBuffer());
+            glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, i, 96, 16, 1, GL_RGBA, GL_UNSIGNED_BYTE, texture.getByteBuffer());
             i++;
         }
 
