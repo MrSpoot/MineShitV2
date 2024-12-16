@@ -30,6 +30,11 @@ public class Chunk {
     @Getter
     private List<Integer> encodedData;
 
+    @Getter @Setter
+    private boolean toRemove = false;
+    @Getter @Setter
+    private boolean toAdd = false;
+
     public Chunk(Vector3i position) {
         this.position = position;
         this.bufferOffset = -1;

@@ -54,16 +54,19 @@ public class GenerationEngine {
 
                     if (globalY < terrainHeight) {
                         short blockId;
-                        if (globalY == terrainHeight - 1) {
-                            blockId = 1; // Surface block
+
+                        if(false){
+                            blockId = (short) BlockType.TEST.ordinal();
+                        } else if (globalY == terrainHeight - 1) {
+                            blockId = (short) BlockType.GRASS.ordinal(); // Surface block
                         } else if (globalY > terrainHeight - 8) {
-                            blockId = 2; // Subsurface block
+                            blockId = (short) BlockType.DIRT.ordinal(); // Subsurface block
                         } else {
-                            blockId = 3; // Deep block
+                            blockId = (short) BlockType.STONE.ordinal(); // Deep block
                         }
                         chunk.setBlock(x, y, z, blockId);
                     } else {
-                        chunk.setBlock(x, y, z, (short) 0); // Air block
+                        chunk.setBlock(x, y, z, (short) BlockType.AIR.ordinal()); // Air block
                     }
                 }
             }
