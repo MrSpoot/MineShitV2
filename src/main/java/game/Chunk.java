@@ -30,10 +30,9 @@ public class Chunk {
     @Getter
     private List<Integer> encodedData;
 
+    //0 : GOOD - 1 : ADD - 2 : REMOVE - 3 : DIRTY
     @Getter @Setter
-    private boolean toRemove = false;
-    @Getter @Setter
-    private boolean toAdd = false;
+    private int state = 0;
 
     public Chunk(Vector3i position) {
         this.position = position;

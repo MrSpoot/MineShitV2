@@ -1,10 +1,10 @@
 package game.utils;
 
 import lombok.Getter;
+import org.lwjgl.system.MemoryUtil;
 
 import java.nio.ByteBuffer;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.lwjgl.opengl.GL15C.*;
@@ -44,6 +44,10 @@ public class BufferManager {
         freeOffsets.put(0, capacity);
     }
 
+    public synchronized List<Map.Entry<Integer, Integer>> getOrderedOffsets() {
+        return new ArrayList<>(idToOffset.entrySet());
+    }
+
     /**
      * Allocates space in the buffer and uploads the data.
      *
@@ -57,9 +61,14 @@ public class BufferManager {
         idToOffset.put(id, offset);
         idToSize.put(id, size);
 
+        System.out.println("Adding " + id + " to offset " + offset + " size: " + size);
+
+        ByteBuffer byteBuffer = ByteBuffer.allocateDirect(data.length);
+        byteBuffer.put(data).flip();
+
         // Upload data to the OpenGL buffer
         glBindBuffer(BUFFER_TYPE, bufferId);
-        glBufferSubData(BUFFER_TYPE, offset, ByteBuffer.wrap(data).flip());
+        glBufferSubData(BUFFER_TYPE, offset, byteBuffer);
         glBindBuffer(BUFFER_TYPE, 0);
     }
 
@@ -84,7 +93,7 @@ public class BufferManager {
 
         // Upload the new data
         glBindBuffer(BUFFER_TYPE, bufferId);
-        glBufferSubData(BUFFER_TYPE, offset, ByteBuffer.wrap(data));
+        glBufferSubData(BUFFER_TYPE, offset, ByteBuffer.wrap(data).flip());
         glBindBuffer(BUFFER_TYPE, 0);
     }
 

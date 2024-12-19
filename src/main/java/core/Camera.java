@@ -82,7 +82,8 @@ public class Camera implements Updatable  {
 
         position.add(velocity);
 
-        World.generateChunksAroundPosition(position,0);
+        //World.generateChunksAroundPosition(position,0);
+        World.generateChunksAroundPosition(new Vector3f(0),0);
     }
 
     private float clamp(float value, float min, float max) {
