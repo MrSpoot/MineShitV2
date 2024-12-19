@@ -3,6 +3,7 @@ package core;
 import core.interfaces.Renderable;
 import game.utils.TextureArray;
 import lombok.Getter;
+import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWVidMode;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.system.MemoryUtil;
@@ -107,6 +108,7 @@ public class Display implements Renderable {
             glfwSetErrorCallback((int errorCode, long msgPtr) ->
                     LOGGER.error("Error code [{}], msg [{}]", errorCode, MemoryUtil.memUTF8(msgPtr))
             );
+
             glfwMakeContextCurrent(id);
             glfwSetInputMode(id,GLFW_CURSOR,GLFW_CURSOR_DISABLED);
             GL.createCapabilities();

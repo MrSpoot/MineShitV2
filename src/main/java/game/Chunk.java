@@ -15,10 +15,6 @@ public class Chunk {
 
     @Getter
     private boolean isUniform;
-    @Getter @Setter
-    private int bufferOffset;
-    @Getter @Setter
-    private int bufferSize;
     @Getter
     private short uniformBlockId;
     private List<Short> palette;
@@ -36,7 +32,6 @@ public class Chunk {
 
     public Chunk(Vector3i position) {
         this.position = position;
-        this.bufferOffset = -1;
         this.isUniform = true;
         this.uniformBlockId = 0;
         initializePaletteAndData();

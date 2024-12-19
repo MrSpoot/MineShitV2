@@ -2,12 +2,14 @@ package game.utils;
 
 import lombok.Getter;
 import org.lwjgl.system.MemoryUtil;
+import utils.MapUtil;
 
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.lwjgl.opengl.GL15C.*;
+import static org.lwjgl.opengl.GL31C.*;
 
 /**
  * Unified manager for handling OpenGL buffers with dynamic allocation, update, and removal support.
@@ -20,20 +22,22 @@ public class BufferManager {
      * @return The OpenGL buffer ID.
      */
     @Getter
-    private final int bufferId;
+    private int bufferId;
     private int capacity;
     private final TreeMap<Integer, Integer> freeOffsets; // Offset -> Size
     private final Map<Integer, Integer> idToOffset;      // ID -> Offset
     private final Map<Integer, Integer> idToSize;        // ID -> Size
     private final int BUFFER_TYPE;
+    private final int vaoId;
 
-    public BufferManager(int BufferType, int initialCapacity) {
+    public BufferManager(int vaoId, int BufferType, int initialCapacity) {
         this.capacity = initialCapacity;
         this.bufferId = glGenBuffers();
         this.freeOffsets = new TreeMap<>();
         this.idToOffset = new ConcurrentHashMap<>();
         this.idToSize = new ConcurrentHashMap<>();
         this.BUFFER_TYPE = BufferType;
+        this.vaoId = vaoId;
 
         // Initialize OpenGL buffer
         glBindBuffer(BUFFER_TYPE, bufferId);
@@ -45,7 +49,15 @@ public class BufferManager {
     }
 
     public synchronized List<Map.Entry<Integer, Integer>> getOrderedOffsets() {
-        return new ArrayList<>(idToOffset.entrySet());
+        return new ArrayList<>(MapUtil.sortByValue(idToOffset).entrySet());
+    }
+
+    public synchronized int getIdOffset(int id) {
+        return idToOffset.get(id);
+    }
+
+    public synchronized int getIdSize(int id) {
+        return idToSize.get(id);
     }
 
     /**
@@ -60,8 +72,6 @@ public class BufferManager {
         int offset = allocate(size);
         idToOffset.put(id, offset);
         idToSize.put(id, size);
-
-        System.out.println("Adding " + id + " to offset " + offset + " size: " + size);
 
         ByteBuffer byteBuffer = ByteBuffer.allocateDirect(data.length);
         byteBuffer.put(data).flip();
@@ -187,21 +197,33 @@ public class BufferManager {
     private void expandBuffer(int additionalSize) {
         int newCapacity = capacity + Math.max(capacity / 2, additionalSize);
 
-        ByteBuffer newBuffer = ByteBuffer.allocate(newCapacity);
-
-        // Copy existing data to the new buffer
-        glBindBuffer(BUFFER_TYPE, bufferId);
-        glGetBufferSubData(BUFFER_TYPE, 0, newBuffer);
-
-        // Replace the old buffer with the new one
+        // Create a new buffer
+        int newBufferId = glGenBuffers();
+        glBindBuffer(BUFFER_TYPE, newBufferId);
         glBufferData(BUFFER_TYPE, newCapacity, GL_DYNAMIC_DRAW);
-        glBufferSubData(BUFFER_TYPE, 0, newBuffer);
+
+        // Bind the old buffer to GL_COPY_READ_BUFFER
+        glBindBuffer(GL_COPY_READ_BUFFER, bufferId);
+
+        // Bind the new buffer to GL_COPY_WRITE_BUFFER
+        glBindBuffer(GL_COPY_WRITE_BUFFER, newBufferId);
+
+        // Copy data from the old buffer to the new buffer
+        glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, capacity);
+
+        // Unbind the buffers
+        glBindBuffer(GL_COPY_READ_BUFFER, 0);
+        glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
+
+        // Delete the old buffer
+        glDeleteBuffers(bufferId);
+
+        // Update the bufferId to the new buffer
+        bufferId = newBufferId;
 
         // Update the capacity and free space
         freeOffsets.put(capacity, newCapacity - capacity);
         capacity = newCapacity;
-
-        glBindBuffer(BUFFER_TYPE, 0);
     }
 
     /**

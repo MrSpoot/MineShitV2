@@ -43,7 +43,16 @@ public class Renderer implements Renderable {
 
         World.render();
 
+        checkGLError("glfwSwapBuffers");
         glfwSwapBuffers(this.display.getId());
+        checkGLError("glfwSwapBuffers");
+    }
+
+    private void checkGLError(String functionName) {
+        int error = glGetError();
+        if (error != GL_NO_ERROR) {
+            throw new RuntimeException("OpenGL error after " + functionName + ": " + error);
+        }
     }
 
     public static RendererBuilder builder() {

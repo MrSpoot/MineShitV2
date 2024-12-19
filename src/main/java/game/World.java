@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.*;
@@ -74,12 +75,12 @@ public class World {
 
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-        ssboBufferManager = new BufferManager(GL_SHADER_STORAGE_BUFFER,100_000);
+        ssboBufferManager = new BufferManager(vaoId,GL_SHADER_STORAGE_BUFFER,100_000);
         ssboId = ssboBufferManager.getBufferId();
 
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssboId);
 
-        vboBufferManager = new BufferManager(GL_ARRAY_BUFFER,10_000_000);
+        vboBufferManager = new BufferManager(vaoId,GL_ARRAY_BUFFER,1_000);
         vboId = vboBufferManager.getBufferId();
         glBindBuffer(GL_ARRAY_BUFFER, vboId);
 
@@ -87,7 +88,7 @@ public class World {
         glEnableVertexAttribArray(1);
         glVertexAttribDivisor(1, 1);
 
-        indirectBufferManager = new BufferManager(GL_DRAW_INDIRECT_BUFFER,100_000);
+        indirectBufferManager = new BufferManager(vaoId,GL_DRAW_INDIRECT_BUFFER,100_000);
         indirectBufferId = indirectBufferManager.getBufferId();
 
         textureArray = new TextureArray();
@@ -147,20 +148,20 @@ public class World {
             //REMOVE
             if(chunk.getState() == 2){
                 chunks.remove(chunk.getPosition());
-                vboBufferManager.removeData(chunk.hashCode());
+                vboBufferManager.removeData(chunk.getPosition().hashCode());
             }
 
             //ADD
             if(chunk.getState() == 1){
                 if(!chunk.getEncodedData().isEmpty()){
-                    vboBufferManager.addData(chunk.hashCode(),toByteArray(chunk.getEncodedData()));
+                    vboBufferManager.addData(chunk.getPosition().hashCode(),toByteArray(chunk.getEncodedData()));
                 }
             }
 
             //DIRTY
             if(chunk.getState() == 3){
-                vboBufferManager.removeData(chunk.hashCode());
-                vboBufferManager.addData(chunk.hashCode(),toByteArray(chunk.getEncodedData()));
+                vboBufferManager.removeData(chunk.getPosition().hashCode());
+                vboBufferManager.addData(chunk.getPosition().hashCode(),toByteArray(chunk.getEncodedData()));
             }
 
         }
@@ -170,26 +171,23 @@ public class World {
         chunkToCompile.clear();
 
         for(Map.Entry<Integer, Integer> entry : vboBufferManager.getOrderedOffsets()) {
-            chunks.values().stream().filter(_c -> _c.hashCode() == entry.getKey()).findFirst().ifPresent(chunkToCompile::add);
+             chunks.values().stream().filter(_c -> _c.getPosition().hashCode() == entry.getKey()).findFirst().ifPresent(chunkToCompile::add);
         }
 
         // Update chunk positions
         chunkPositionBuffer = MemoryUtil.memAllocFloat(chunkToCompile.size() * 4);
         indirectBuffer = MemoryUtil.memAllocInt(4 * chunkToCompile.size());
 
-        int offset = 0;
         for (Chunk chunk : chunkToCompile) {
             chunkPositionBuffer.put(chunk.getPosition().x);
             chunkPositionBuffer.put(chunk.getPosition().y);
             chunkPositionBuffer.put(chunk.getPosition().z);
             chunkPositionBuffer.put(0.0f);
 
-            List<Integer> chunkData = chunk.getEncodedData();
             indirectBuffer.put(6); // Primitive count
-            indirectBuffer.put(chunkData.size()); // Instance count
+            indirectBuffer.put(vboBufferManager.getIdSize(chunk.getPosition().hashCode()) / Integer.BYTES); // Instance count
             indirectBuffer.put(0); // First index
-            indirectBuffer.put(offset); // Base instance
-            offset += chunkData.size();
+            indirectBuffer.put(vboBufferManager.getIdOffset(chunk.getPosition().hashCode()) / Integer.BYTES); // Base instance
         }
 
         chunkPositionBuffer.flip();
@@ -231,7 +229,7 @@ public class World {
     }
 
     private static byte[] toByteArray(List<Integer> list) {
-        ByteBuffer buffer = ByteBuffer.allocate(list.size() * Integer.BYTES);
+        ByteBuffer buffer = ByteBuffer.allocate(list.size() * Integer.BYTES).order(ByteOrder.nativeOrder());
         for (int value : list) {
             buffer.putInt(value);
         }
