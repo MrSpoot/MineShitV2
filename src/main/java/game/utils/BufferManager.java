@@ -1,7 +1,10 @@
 package game.utils;
 
+import game.World;
 import lombok.Getter;
 import org.lwjgl.system.MemoryUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import utils.MapUtil;
 
 import java.nio.ByteBuffer;
@@ -10,11 +13,15 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static org.lwjgl.opengl.GL15C.*;
 import static org.lwjgl.opengl.GL31C.*;
+import static org.lwjgl.opengl.GL33C.glVertexAttribDivisor;
 
 /**
  * Unified manager for handling OpenGL buffers with dynamic allocation, update, and removal support.
  */
 public class BufferManager {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(BufferManager.class);
+
     /**
      * -- GETTER --
      *  Gets the OpenGL buffer ID.
@@ -29,8 +36,9 @@ public class BufferManager {
     private final Map<Integer, Integer> idToSize;        // ID -> Size
     private final int BUFFER_TYPE;
     private final int vaoId;
+    private final BufferManagerInitializer initializer;
 
-    public BufferManager(int vaoId, int BufferType, int initialCapacity) {
+    public BufferManager(int vaoId, int BufferType, int initialCapacity, BufferManagerInitializer initializer) {
         this.capacity = initialCapacity;
         this.bufferId = glGenBuffers();
         this.freeOffsets = new TreeMap<>();
@@ -38,10 +46,14 @@ public class BufferManager {
         this.idToSize = new ConcurrentHashMap<>();
         this.BUFFER_TYPE = BufferType;
         this.vaoId = vaoId;
+        this.initializer = initializer;
 
         // Initialize OpenGL buffer
         glBindBuffer(BUFFER_TYPE, bufferId);
         glBufferData(BUFFER_TYPE, capacity, GL_DYNAMIC_DRAW);
+        if(initializer != null) {
+            initializer.initialize(this);
+        }
         glBindBuffer(BUFFER_TYPE, 0);
 
         // Initially, the whole buffer is free
@@ -197,34 +209,44 @@ public class BufferManager {
     private void expandBuffer(int additionalSize) {
         int newCapacity = capacity + Math.max(capacity / 2, additionalSize);
 
-        // Create a new buffer
+        // Création d'un nouveau buffer
         int newBufferId = glGenBuffers();
         glBindBuffer(BUFFER_TYPE, newBufferId);
         glBufferData(BUFFER_TYPE, newCapacity, GL_DYNAMIC_DRAW);
 
-        // Bind the old buffer to GL_COPY_READ_BUFFER
+        // Copie des données de l'ancien buffer vers le nouveau
         glBindBuffer(GL_COPY_READ_BUFFER, bufferId);
-
-        // Bind the new buffer to GL_COPY_WRITE_BUFFER
         glBindBuffer(GL_COPY_WRITE_BUFFER, newBufferId);
-
-        // Copy data from the old buffer to the new buffer
         glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, capacity);
 
-        // Unbind the buffers
+        // Désactivez les buffers liés
         glBindBuffer(GL_COPY_READ_BUFFER, 0);
         glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
 
-        // Delete the old buffer
+        // Supprimez l'ancien buffer après avoir vérifié qu'il n'est plus utilisé
+        glBindBuffer(BUFFER_TYPE, 0); // Assurez-vous que le buffer est délié avant suppression
         glDeleteBuffers(bufferId);
 
-        // Update the bufferId to the new buffer
+        // Mettez à jour l'ID du buffer et réaffectez-le dans les VAOs ou autres
         bufferId = newBufferId;
+        glBindBuffer(BUFFER_TYPE, bufferId);
 
-        // Update the capacity and free space
+        // Réaffectez le VAO si nécessaire
+        glBindVertexArray(vaoId);
+        glBindBuffer(BUFFER_TYPE,bufferId);
+        if (initializer != null) {
+            initializer.initialize(this);
+        }
+        glBindBuffer(BUFFER_TYPE,0);
+
+        // Mettre à jour la capacité et les espaces libres
         freeOffsets.put(capacity, newCapacity - capacity);
         capacity = newCapacity;
+
+        //LOGGER.info("Buffer expanded to new capacity: {}", capacity);
     }
+
+
 
     /**
      * Merges adjacent free blocks in the buffer.

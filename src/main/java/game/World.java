@@ -49,6 +49,7 @@ public class World {
 
     private static boolean buffersNeedUpdate = true;
 
+    private static int lastRenderDistance = -1;
     private static Vector3i lastPosition = new Vector3i(Integer.MAX_VALUE);
 
     private static final float[] baseVertexData = {
@@ -75,20 +76,21 @@ public class World {
 
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-        ssboBufferManager = new BufferManager(vaoId,GL_SHADER_STORAGE_BUFFER,100_000);
+        ssboBufferManager = new BufferManager(vaoId,GL_SHADER_STORAGE_BUFFER,100_000,null);
         ssboId = ssboBufferManager.getBufferId();
 
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssboId);
 
-        vboBufferManager = new BufferManager(vaoId,GL_ARRAY_BUFFER,1_000);
+        vboBufferManager = new BufferManager(vaoId,GL_ARRAY_BUFFER,100_000_000, (b) -> {
+            glVertexAttribIPointer(1, 1, GL_UNSIGNED_INT, 0, 0);
+            glEnableVertexAttribArray(1);
+            glVertexAttribDivisor(1, 1);
+        });
+
         vboId = vboBufferManager.getBufferId();
         glBindBuffer(GL_ARRAY_BUFFER, vboId);
 
-        glVertexAttribIPointer(1, 1, GL_UNSIGNED_INT, 0, 0);
-        glEnableVertexAttribArray(1);
-        glVertexAttribDivisor(1, 1);
-
-        indirectBufferManager = new BufferManager(vaoId,GL_DRAW_INDIRECT_BUFFER,100_000);
+        indirectBufferManager = new BufferManager(vaoId,GL_DRAW_INDIRECT_BUFFER,100_000,null);
         indirectBufferId = indirectBufferManager.getBufferId();
 
         textureArray = new TextureArray();
@@ -103,10 +105,11 @@ public class World {
 
         Vector3i center = new Vector3i(chunkX, chunkY, chunkZ);
 
-        if (lastPosition.equals(center)) {
+        if (lastPosition.equals(center) && lastRenderDistance == renderDistance) {
             return;
         }
         lastPosition = center;
+        lastRenderDistance = renderDistance;
 
         Set<Vector3i> newChunks = new HashSet<>();
         Set<Vector3i> existingChunks = new HashSet<>(chunks.keySet());
@@ -143,21 +146,23 @@ public class World {
     }
 
     public static void updateChunkDataBuffer(){
-        for(Chunk chunk : chunks.values()){
-
-            //REMOVE
+        for (Chunk chunk : chunks.values()){
             if(chunk.getState() == 2){
                 chunks.remove(chunk.getPosition());
                 vboBufferManager.removeData(chunk.getPosition().hashCode());
             }
+        }
 
+        for (Chunk chunk : chunks.values()){
             //ADD
             if(chunk.getState() == 1){
                 if(!chunk.getEncodedData().isEmpty()){
                     vboBufferManager.addData(chunk.getPosition().hashCode(),toByteArray(chunk.getEncodedData()));
                 }
             }
+        }
 
+        for(Chunk chunk : chunks.values()){
             //DIRTY
             if(chunk.getState() == 3){
                 vboBufferManager.removeData(chunk.getPosition().hashCode());

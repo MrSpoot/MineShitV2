@@ -6,7 +6,7 @@ import static org.lwjgl.glfw.GLFW.*;
 public class MineShit {
 
     public static void main(String[] args) {
-            Loop loop = Loop.builder().render(100000).update(100000).build();
+            Loop loop = Loop.builder().render(500).update(500).build();
             Display window = Display.builder().title("v0.0.1").width(1280).height(720).loop(loop).build();
             Inputer inputer = Inputer.builder().display(window).loop(loop)
                     .touch(new InputTouch("exit",GLFW_KEY_ESCAPE))
@@ -19,6 +19,8 @@ public class MineShit {
                     .touch(new InputTouch("display_fill",GLFW_KEY_O))
                     .touch(new InputTouch("rendermod_1",GLFW_KEY_L))
                     .touch(new InputTouch("rendermod_2",GLFW_KEY_K))
+                    .touch(new InputTouch("increase_render_distance",GLFW_KEY_B))
+                    .touch(new InputTouch("decrease_render_distance",GLFW_KEY_N))
                     .build();
 
             Input.init(inputer);

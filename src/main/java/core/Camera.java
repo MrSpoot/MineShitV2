@@ -28,9 +28,10 @@ public class Camera implements Updatable  {
     private float ySens = 50f;
     private float pitch = 0.0f;
     private float yaw = 0.0f;
+    private int renderDistance = 4;
 
     public Camera(float fov, float aspectRatio, float nearPlane, float farPlane, Loop loop) {
-        this.position = new Vector3f(0, 0, 0);
+        this.position = new Vector3f(0, 32, 0);
         this.rotation = new Quaternionf();
         this.fov = fov;
         this.aspectRatio = aspectRatio;
@@ -78,12 +79,24 @@ public class Camera implements Updatable  {
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         }
 
+        if(Input.isPressed("increase_render_distance")){
+            renderDistance++;
+            System.out.println("Render Distance = " + renderDistance);
+        }
+
+        if(Input.isPressed("decrease_render_distance")){
+            if(renderDistance > 0){
+                renderDistance--;
+                System.out.println("Render Distance = " + renderDistance);
+            }
+        }
+
         velocity.mul(cameraSpeed);
 
         position.add(velocity);
 
-        //World.generateChunksAroundPosition(position,1);
-       World.generateChunksAroundPosition(new Vector3f(0),0);
+        //World.generateChunksAroundPosition(position,renderDistance);
+        World.generateChunksAroundPosition(new Vector3f(0),renderDistance);
     }
 
     private float clamp(float value, float min, float max) {
