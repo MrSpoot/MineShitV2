@@ -3,6 +3,7 @@ package game;
 import core.Display;
 import game.utils.BufferManager;
 import game.utils.TextureArray;
+import lombok.Setter;
 import org.joml.Vector3f;
 import org.joml.Vector3i;
 import org.lwjgl.system.MemoryUtil;
@@ -47,6 +48,7 @@ public class World {
     private static FloatBuffer chunkPositionBuffer;
     private static IntBuffer indirectBuffer;
 
+    @Setter
     private static boolean buffersNeedUpdate = true;
 
     private static int lastRenderDistance = -1;
@@ -129,9 +131,11 @@ public class World {
         for (Vector3i chunkPos : existingChunks) {
             executorService.execute(() -> {
                 Chunk c = chunks.get(chunkPos);
-                c.setState(2);
-                chunks.put(chunkPos,c);
-                buffersNeedUpdate = true;
+                if(c != null){
+                    c.setState(2);
+                    chunks.put(chunkPos,c);
+                    buffersNeedUpdate = true;
+                }
             });
         }
 
@@ -223,6 +227,14 @@ public class World {
         glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirectBufferId);
         glMultiDrawArraysIndirect(GL_TRIANGLES, 0, chunkToCompile.size(), 16);
         textureArray.unbind();
+    }
+
+    public static Chunk getChunkAt(Vector3i blockPos) {
+        int x = blockPos.x / Chunk.SIZE;
+        int y = blockPos.y / Chunk.SIZE;
+        int z = blockPos.z / Chunk.SIZE;
+
+        return chunks.get(new Vector3i(x, y, z));
     }
 
     private static int[] toIntArray(List<Integer> list) {
