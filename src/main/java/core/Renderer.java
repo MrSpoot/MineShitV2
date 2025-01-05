@@ -3,6 +3,8 @@ package core;
 import core.interfaces.Renderable;
 import game.World;
 import org.joml.Matrix4f;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,6 +13,8 @@ import static org.lwjgl.glfw.GLFW.glfwSwapBuffers;
 import static org.lwjgl.opengl.GL11.*;
 
 public class Renderer implements Renderable {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(Renderer.class);
 
     private final Display display;
     private final Loop loop;
@@ -23,7 +27,7 @@ public class Renderer implements Renderable {
         this.camera = camera;
         this.renderables = renderables;
 
-        World.initialize();
+        World.initialize(camera);
 
         loop.addComponent(this);
     }
@@ -35,9 +39,7 @@ public class Renderer implements Renderable {
 
         Display.shader.useProgram();
 
-        Display.shader.setUniform("uView",camera.getViewMatrix());
-        Display.shader.setUniform("uProjection",camera.getProjectionMatrix());
-        Display.shader.setUniform("uModel", new Matrix4f().identity().translate(0,0,0));
+        Display.shader.setUniform("uCameraSpaceMatrix",camera.getCameraSpaceMatrix());
 
         this.renderables.forEach(Renderable::render);
 

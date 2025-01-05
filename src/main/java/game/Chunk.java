@@ -37,7 +37,9 @@ public class Chunk {
         initializePaletteAndData();
         generateData();
 
-        //setBlock(15,15,15,(short)4);
+        for(int i = 0; i < 32; i++){
+            setBlock(15,i,15,(short)4);
+        }
 
         generateMesh();
     }

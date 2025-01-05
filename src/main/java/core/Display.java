@@ -21,8 +21,8 @@ public class Display implements Renderable {
 
     private final long id;
     private final String title;
-    private final int width;
-    private final int height;
+    @Getter
+    private final int width, height;
     private final Loop loop;
     public static Shader shader;
 
@@ -117,7 +117,7 @@ public class Display implements Renderable {
             glCullFace(GL_BACK);
 
             glEnable(GL_DEPTH_TEST);
-            glDepthFunc(GL_LEQUAL);
+            //glDepthFunc(GL_DEPTH);
 
             glfwSwapInterval(0);
             glViewport(0,0,width,height);

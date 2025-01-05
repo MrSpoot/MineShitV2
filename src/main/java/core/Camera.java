@@ -95,8 +95,8 @@ public class Camera implements Updatable  {
 
         position.add(velocity);
 
-        //World.generateChunksAroundPosition(position,renderDistance);
-        World.generateChunksAroundPosition(new Vector3f(0),renderDistance);
+        World.generateChunksAroundPosition(position,renderDistance);
+        //World.generateChunksAroundPosition(new Vector3f(0),renderDistance);
     }
 
     private float clamp(float value, float min, float max) {
@@ -121,6 +121,10 @@ public class Camera implements Updatable  {
         forward.rotate(rotation);
 
         return new Vector3f(position).add(forward);
+    }
+
+    public Matrix4f getCameraSpaceMatrix(){
+        return new Matrix4f(getProjectionMatrix()).mul(getViewMatrix());
     }
 
     public Matrix4f getProjectionMatrix() {

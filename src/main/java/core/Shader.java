@@ -136,6 +136,10 @@ public class Shader {
         glUseProgram(program);
     }
 
+    public void unbind(){
+        glUseProgram(0);
+    }
+
     private void extractUniforms(String shaderCode) {
         // Pattern pour les structures
         Pattern structPattern = Pattern.compile("struct\\s+(\\w+)\\s*\\{([^}]+)\\};");

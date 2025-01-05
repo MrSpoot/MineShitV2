@@ -80,11 +80,11 @@ public class BufferManager {
      * @throws RuntimeException If the buffer does not have enough space.
      */
     public synchronized void addData(int id, byte[] data) {
+
         int size = data.length;
         int offset = allocate(size);
         idToOffset.put(id, offset);
         idToSize.put(id, size);
-
         ByteBuffer byteBuffer = ByteBuffer.allocateDirect(data.length);
         byteBuffer.put(data).flip();
 
@@ -207,7 +207,7 @@ public class BufferManager {
      * @param additionalSize Minimum additional size required.
      */
     private void expandBuffer(int additionalSize) {
-        int newCapacity = capacity + Math.max(capacity / 2, additionalSize);
+        int newCapacity = capacity + Math.max(capacity, additionalSize);
 
         // Création d'un nouveau buffer
         int newBufferId = glGenBuffers();

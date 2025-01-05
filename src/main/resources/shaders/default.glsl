@@ -4,8 +4,8 @@
 layout(location = 0) in vec3 aBaseVertex; // Vertices d'une face définie dans le shader
 layout(location = 1) in uint aInstanceData; // Données compressées pour l'instance
 
-uniform mat4 uView;
-uniform mat4 uProjection;
+uniform mat4 uCameraSpaceMatrix;
+uniform mat4 uLightSpaceMatrix; // Matrice espace lumière
 
 layout(std430, binding = 0) buffer ChunkPositions {
     vec3 chunkPosition[];
@@ -14,6 +14,7 @@ layout(std430, binding = 0) buffer ChunkPositions {
 out int TextureLayer;
 out vec3 Normal;
 out vec3 FragPos;
+out vec4 FragPosLightSpace; // Position dans l'espace de la lumière
 out int FaceIndex;
 
 const int FACE_BACK = 0;
@@ -50,30 +51,28 @@ vec3 decodeNormal(uint encodedInstance) {
 }
 
 void main() {
-
     uint drawIndex = gl_DrawID;
 
     vec3 instancePos = decodePosition(aInstanceData);
-
     vec3 basePos = aBaseVertex;
 
-    if(decodeFace(aInstanceData) == FACE_TOP) {
+    if (decodeFace(aInstanceData) == FACE_TOP) {
         FaceIndex = FACE_TOP;
         basePos.y++;
-    }else if(decodeFace(aInstanceData) == FACE_BOTTOM){
+    } else if (decodeFace(aInstanceData) == FACE_BOTTOM) {
         FaceIndex = FACE_BOTTOM;
         basePos.xz = basePos.zx;
-    }else if(decodeFace(aInstanceData) == FACE_LEFT){
+    } else if (decodeFace(aInstanceData) == FACE_LEFT) {
         FaceIndex = FACE_LEFT;
         basePos.xy = basePos.yx;
-    }else if(decodeFace(aInstanceData) == FACE_RIGHT){
+    } else if (decodeFace(aInstanceData) == FACE_RIGHT) {
         FaceIndex = FACE_RIGHT;
         basePos.zxy = basePos.xyz;
         basePos.x++;
-    }else if(decodeFace(aInstanceData) == FACE_BACK){
+    } else if (decodeFace(aInstanceData) == FACE_BACK) {
         FaceIndex = FACE_BACK;
         basePos.zy = basePos.yz;
-    }else if(decodeFace(aInstanceData) == FACE_FRONT){
+    } else if (decodeFace(aInstanceData) == FACE_FRONT) {
         FaceIndex = FACE_FRONT;
         basePos.xzy = basePos.zyx;
         basePos.z++;
@@ -87,7 +86,9 @@ void main() {
     TextureLayer = decodeBlock(aInstanceData);
     Normal = decodeNormal(aInstanceData);
 
-    gl_Position = uProjection * uView * vec4(basePos + offset, 1.0);
+    FragPosLightSpace = uLightSpaceMatrix * vec4(basePos + offset, 1.0);
+
+    gl_Position = uCameraSpaceMatrix * vec4(basePos + offset, 1.0);
 }
 //@endvs
 
@@ -95,11 +96,14 @@ void main() {
 #version 460 core
 
 uniform sampler2DArray textureArray;
+uniform sampler2D shadowMap;
+uniform vec3 lightDir;
 
 flat in int TextureLayer;
 flat in int FaceIndex;
 in vec3 Normal;
 in vec3 FragPos;
+in vec4 FragPosLightSpace;
 
 out vec4 FragColor;
 
@@ -109,6 +113,28 @@ const int FACE_LEFT = 2;
 const int FACE_RIGHT = 3;
 const int FACE_BOTTOM = 4;
 const int FACE_TOP = 5;
+
+float calculateShadow(vec4 fragPosLightSpace, vec3 normal)
+{
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords = projCoords * 0.5 + 0.5;
+    float closestDepth = texture(shadowMap, projCoords.xy).r;
+    float currentDepth = projCoords.z;
+    float shadow = currentDepth > closestDepth  ? 1.0 : 0.0;
+
+    vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
+    float bias = max(0.01 * (1.0 - dot(normal, lightDir)), 0.001);
+    for(int x = -1; x <= 1; ++x)
+    {
+        for(int y = -1; y <= 1; ++y)
+        {
+            float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
+            shadow += currentDepth - bias < pcfDepth ? 1.0 : 0.5;
+        }
+    }
+    shadow /= 9.0;
+    return shadow;
+}
 
 void main() {
     vec3 color = abs(Normal);
@@ -144,8 +170,15 @@ void main() {
         textureCoord.x += faceWidth * faceIndex;
     }
 
-    FragColor = texture(textureArray,vec3(textureCoord,TextureLayer));
-    //FragColor = vec4(textureCoord,0,1);
+    float lightContribution = max(dot(Normal, lightDir), 0.0);
+    float shadow = calculateShadow(FragPosLightSpace, Normal);
+    color = texture(textureArray, vec3(textureCoord, TextureLayer)).rgb;
 
+    // Calcul de l'éclairement progressif
+    float ambient = 0.5; // Lumière ambiante minimale
+    float diffuse = lightContribution * shadow; // Lumière diffuse combinée avec l'ombre
+
+    // Mélange de la lumière ambiante et diffuse
+    FragColor = vec4(color * (ambient + diffuse), 1.0);
 }
 //@endfs
